@@ -1381,6 +1381,34 @@ static int ffi_offsetof(lua_State* L)
     return 3;
 }
 
+static int type_is_same_incl_unsigned(lua_State* L, int usr1, int usr2, const struct ctype* t1, const struct ctype* t2)
+{
+    if ((t1->type != t2->type) ||
+		(t1->is_unsigned != t2->is_unsigned)) {
+        return 0;
+    }
+
+#if LUA_VERSION_NUM == 501
+    if (lua_isnil(L, usr1) != lua_isnil(L, usr2)) {
+        int ret;
+        usr1 = lua_absindex(L, usr1);
+        usr2 = lua_absindex(L, usr2);
+        push_upval(L, &niluv_key);
+
+        ret = lua_rawequal(L, usr1, -1)
+            || lua_rawequal(L, usr2, -1);
+
+        lua_pop(L, 1);
+
+        if (ret) {
+            return 1;
+        }
+    }
+#endif
+
+    return lua_rawequal(L, usr1, usr2);
+}
+
 static int ffi_istype(lua_State* L)
 {
     struct ctype tt, ft;
@@ -1391,7 +1419,8 @@ static int ffi_istype(lua_State* L)
         goto fail;
     }
 
-    if (!is_same_type(L, 3, 4, &tt, &ft)) {
+    //if (!is_same_type(L, 3, 4, &tt, &ft))
+    if (!type_is_same_incl_unsigned(L, 3, 4, &tt, &ft)) {
         goto fail;
     }
 
@@ -2596,6 +2625,20 @@ static int cdata_tostring(lua_State* L)
     }
 }
 
+static int ffi_getptr(lua_State* L)
+{
+    struct ctype ct;
+    char buf[64];
+    void* p = NULL;
+    int ret;
+
+    lua_settop(L, 1);
+    p = to_cdata(L, 1, &ct);
+	lua_pushlightuserdata(L, p);
+	return 1;
+
+}
+
 static int ffi_errno(lua_State* L)
 {
     struct jit* jit = get_jit(L);
@@ -3135,6 +3178,7 @@ static const luaL_Reg ffi_reg[] = {
     {"debug", &ffi_debug},
     {"i64", &ffi_i64},
     {"u64", &ffi_u64},
+    {"getptr", &ffi_getptr},
     {NULL, NULL}
 };
 
