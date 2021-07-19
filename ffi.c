@@ -2618,6 +2618,11 @@ static int cdata_tostring(lua_State* L)
         lua_pushstring(L, buf);
         return 1;
 
+    case FLOAT_TYPE:
+        sprintf(buf,"%f", *(float*) p);
+        lua_pushstring(L, buf);
+        return 1;
+
     default:
         sprintf(buf, ct.is_unsigned ? "%"PRId64 : "%"PRId64, (int64_t) check_intptr(L, 1, p, &ct));
         lua_pushstring(L, buf);
@@ -2676,8 +2681,17 @@ static int ffi_number(lua_State* L)
     struct ctype ct;
     void* data = to_cdata(L, 1, &ct);
 
+	//pfintf("%s:%d\n", __FILE__, __LINE__);
+
     if (ct.type != INVALID_TYPE) {
-        lua_pushinteger(L, check_intptr(L, 1, data, &ct));
+		switch (ct.type) {
+			case FLOAT_TYPE:
+				lua_pushnumber(L, *(float*)data);
+				break;
+			default:
+				lua_pushinteger(L, check_intptr(L, 1, data, &ct));
+				break;
+		}
         return 1;
     } else {
         /* call the old _G.tonumber, we use an upvalue as _G.tonumber is set
