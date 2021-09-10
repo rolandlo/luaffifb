@@ -30,5 +30,6 @@ build = {
       },
       ['ffi.libtest'] = 'test.c',
       ['ffi.test'] = 'test.lua',
+	  bit = "bit.lua",
    }
 }
