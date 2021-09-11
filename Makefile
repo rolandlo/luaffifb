@@ -29,4 +29,4 @@ call_x64win.h: call_x86.dasc dynasm/*.lua
 	$(LUA) dynasm/dynasm.lua -D X64 -D X64WIN -LN -o $@ $<
 
 call_arm.h: call_arm.dasc dynasm/*.lua
-	$(LUA) dynasm/dynasm.lua -LNE -o $@ $<
+	$(LUA) dynasm/dynasm.lua -LN -o $@ $<

@@ -111,7 +111,6 @@ function bit.tohex(arg, n)
 	end
 	local fmt = '%0'..s..'X';
 	local sh = (8 - s)*4;
-	print(debug.getinfo(1).source, debug.getinfo(1).currentline, s, sh);
 	local x = ((b << sh) & 0x00000000FFFFFFFF);
 	x = ((x >> sh) & 0x00000000FFFFFFFF);
 	return string.format(fmt, x);
