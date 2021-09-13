@@ -20,13 +20,13 @@ headers:
 	$(MAKE) call_x86.h call_x64.h call_x64win.h call_arm.h
 
 call_x86.h: call_x86.dasc dynasm/*.lua
-	$(LUA) dynasm/dynasm.lua -LN -o $@ $<
+	$(LUA) dynasm/dynasm.lua -L -o $@ $<
 
 call_x64.h: call_x86.dasc dynasm/*.lua
-	$(LUA) dynasm/dynasm.lua -D X64 -LN -o $@ $<
+	$(LUA) dynasm/dynasm.lua -D X64 -L -o $@ $<
 
 call_x64win.h: call_x86.dasc dynasm/*.lua
 	$(LUA) dynasm/dynasm.lua -D X64 -D X64WIN -LN -o $@ $<
 
 call_arm.h: call_arm.dasc dynasm/*.lua
-	$(LUA) dynasm/dynasm.lua -LN -o $@ $<
+	$(LUA) dynasm/dynasm.lua -L -o $@ $<

@@ -13,9 +13,11 @@
  * LICENSE file in the root directory of this source tree. An additional grant
  * of patent rights can be found in the PATENTS file in the same directory.
  */
+//|.arch arm
 #if DASM_VERSION != 10400
 #error "Version mismatch between DynASM and included encoding engine"
 #endif
+//|.actionlist build_actionlist
 static const unsigned int build_actionlist[546] = {
 0xE1A0C00D,
 0xE92D000F,
@@ -565,9 +567,11 @@ static const unsigned int build_actionlist[546] = {
 0x00000000
 };
 
+//|.globalnames globnames
 static const char *const globnames[] = {
   (const char *)0
 };
+//|.externnames extnames
 static const char *const extnames[] = {
   "lua_rawgeti",
   "push_cdata",
@@ -618,8 +622,22 @@ static void compile_extern_jump(struct jit* jit, lua_State* L, cfunction func, u
     *(uint32_t*) &code[4] = 0xE51FF00CU;
 }
 
+//|.define TOP, r4
+//|.define L_ARG, r5
+//|.define DATA, r6
+//|.define DATA2, r7
 
+//|.macro load32, reg, val
+//| ldr reg, [pc]
+//| b >5
+//|.long val
+//|5:
+//|.endmacro
 
+//|.macro lcall, func
+//| mov r0, L_ARG
+//| bl func
+//|.endmacro
 
 void compile_globals(struct jit* jit, lua_State* L)
 {
@@ -650,11 +668,25 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
     }
 
     /* prolog and get the upval table */
+    //| mov r12, sp
+    //| push {r0, r1, r2, r3} // do this first so that r0-r3 is right before stack bound arguments
+    //| push {TOP, L_ARG, DATA, DATA2, r12, lr}
+    //| sub DATA, r12, #16 // points to r0 on stack
+    //| ldr L_ARG, [pc, #8]
+    //| ldr r2, [pc, #8]
+    //| ldr r1, [pc, #8]
+    //| b >1
+    //|.long L, ref, LUA_REGISTRYINDEX
+    //|1:
+    //| lcall extern lua_rawgeti
     dasm_put(Dst, 0, (uintptr_t)(L), (uintptr_t)(ref), (uintptr_t)(LUA_REGISTRYINDEX));
 
     /* get the lua function */
     lua_pushvalue(L, fidx);
     lua_rawseti(L, -2, ++num_upvals);
+    //| mov r2, #num_upvals
+    //| mvn r1, #0 // -1
+    //| lcall extern lua_rawgeti
     dasm_put(Dst, 17, num_upvals);
 
     for (i = 1; i <= nargs; i++) {
@@ -666,60 +698,106 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             lua_rawseti(L, -3, ++num_upvals); /* usr value */
             lua_rawseti(L, -2, ++num_upvals); /* mt */
 
+            //| mov r2, #num_upvals-1 // usr value
+            //| mvn r1, #i // -i-1, stack is upval table, func, i-1 args
+            //| lcall extern lua_rawgeti
+            //| load32 r2, mt
+            //| mvn r1, #0 // -1
+            //| lcall extern push_cdata
+            //| ldr r2, [DATA], #4
+            //| str r2, [r0]
+            //| mvn r1, #1 // -2
+            //| lcall extern lua_remove // remove the usr value
             dasm_put(Dst, 24, num_upvals-1, i, (uintptr_t)(mt));
 
         } else {
             switch (mt->type) {
             case INT64_TYPE:
                 lua_rawseti(L, -2, ++num_upvals); /* mt */
+                //| lcall extern lua_pushnil
+                //| load32 r2, mt
+                //| mvn r1, #0 // -1
+                //| lcall extern push_cdata
+                //| ldr r2, [DATA], #4
+                //| ldr r3, [DATA], #4
+                //| str r2, [r0]
+                //| str r3, [r0, #4]
+                //| mvn r1, #1 // -2
+                //| lcall extern lua_remove // remove the nil usr
                 dasm_put(Dst, 47, (uintptr_t)(mt));
                 break;
 
             case INTPTR_TYPE:
                 lua_rawseti(L, -2, ++num_upvals); /* mt */
+                //| lcall extern lua_pushnil
+                //| load32 r2, mt
+                //| mvn r1, #0 // -1
+                //| lcall extern push_cdata
+                //| ldr r2, [DATA], #4
+                //| str r2, [r0]
+                //| mvn r1, #1 // -2
+                //| lcall extern lua_remove // remove the nil usr
                 dasm_put(Dst, 68, (uintptr_t)(mt));
                 break;
 
             case BOOL_TYPE:
                 lua_pop(L, 1);
+                //| ldr r1, [DATA], #4
+                //| lcall extern lua_pushboolean
                 dasm_put(Dst, 87);
                 break;
 
             case INT8_TYPE:
                 lua_pop(L, 1);
+                //| ldr r1, [DATA], #4
+                //| mov r1, r1, lsl #24
                 dasm_put(Dst, 92);
                 if (mt->is_unsigned) {
+                    //| mov r1, r1, lsr #24
                     dasm_put(Dst, 95);
                 } else {
+                    //| mov r1, r1, asr #24
                     dasm_put(Dst, 97);
                 }
+                //| lcall extern push_int
                 dasm_put(Dst, 99);
                 break;
 
             case INT16_TYPE:
                 lua_pop(L, 1);
+                //| ldr r1, [DATA], #4
+                //| mov r1, r1, lsl #16
                 dasm_put(Dst, 103);
                 if (mt->is_unsigned) {
+                    //| mov r1, r1, lsr #16
                     dasm_put(Dst, 106);
                 } else {
+                    //| mov r1, r1, asr #16
                     dasm_put(Dst, 108);
                 }
+                //| lcall extern push_int
                 dasm_put(Dst, 110);
                 break;
 
             case ENUM_TYPE:
             case INT32_TYPE:
                 lua_pop(L, 1);
+                //| ldr r1, [DATA], #4
+                //| lcall extern push_int
                 dasm_put(Dst, 114);
                 break;
 
             case FLOAT_TYPE:
                 lua_pop(L, 1);
+                //| ldr r1, [DATA], #4
+                //| lcall extern push_float
                 dasm_put(Dst, 119);
                 break;
 
             case DOUBLE_TYPE:
                 lua_pop(L, 1);
+                //| ldmia DATA!, {r1, r2}
+                //| lcall extern lua_pushnumber
                 dasm_put(Dst, 124);
                 break;
 
@@ -732,6 +810,10 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
     lua_rawgeti(L, ct_usr, 0);
     mt = (const struct ctype*) lua_touserdata(L, -1);
 
+    //| mov r3, #0
+    //| mov r2, #((mt->pointers || mt->is_reference || mt->type != VOID_TYPE) ? 1 : 0)
+    //| mov r1, #nargs
+    //| lcall extern lua_callk
     dasm_put(Dst, 129, ((mt->pointers || mt->is_reference || mt->type != VOID_TYPE) ? 1 : 0), nargs);
 
     if (mt->pointers || mt->is_reference) {
@@ -739,6 +821,17 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
         lua_rawseti(L, -3, ++num_upvals); /* usr value */
         lua_rawseti(L, -2, ++num_upvals); /* mt */
 
+        //| mov r2, #num_upvals-1 // usr value
+        //| mvn r1, #1 // -2 stack is (upval table, ret val)
+        //| lcall extern lua_rawgeti
+        //| load32 r3, mt
+        //| mov r2, #0 // -1 - ct_usr
+        //| mvn r1, #1 // -2 - val
+        //| lcall extern to_typed_pointer
+        //| mov DATA, r0
+        //| mvn r1, #3 // -4 - remove 3 (upval table, ret val, usr value)
+        //| lcall extern lua_settop
+        //| mov r0, DATA
         dasm_put(Dst, 138, num_upvals-1, (uintptr_t)(mt));
     } else {
         switch (mt->type) {
@@ -747,10 +840,23 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             lua_rawseti(L, -3, ++num_upvals); /* usr value */
             lua_rawseti(L, -2, ++num_upvals); /* mt */
 
+            //| mov r2, #num_upvals-1 // usr value
+            //| mvn r1, #1 // -2 stack is (upval table, ret val)
+            //| lcall extern lua_rawgeti
+            //| load32 r3, mt
+            //| mvn r2, #0 // -1 - ct_usr
+            //| mvn r1, #1 // -2 - val
+            //| lcall extern to_enum
+            //| mov DATA, r0
+            //| mvn r1, #3 // -4 - remove 3 (upval table, ret val, usr value)
+            //| lcall extern lua_settop
+            //| mov r0, DATA
             dasm_put(Dst, 161, num_upvals-1, (uintptr_t)(mt));
             break;
 
         case VOID_TYPE:
+            //| mvn r1, #1 // -2
+            //| lcall extern lua_settop
             dasm_put(Dst, 184);
             lua_pop(L, 1);
             break;
@@ -759,41 +865,63 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
         case INT8_TYPE:
         case INT16_TYPE:
         case INT32_TYPE:
+            //| mvn r1, #0 // -1
             dasm_put(Dst, 189);
             if (mt->is_unsigned) {
+                //| lcall extern check_uint32
                 dasm_put(Dst, 191);
             } else {
+                //| lcall extern check_int32
                 dasm_put(Dst, 195);
             }
             goto single;
 
         case INT64_TYPE:
+            //| mvn r1, #0 // -1
             dasm_put(Dst, 199);
             if (mt->is_unsigned) {
+                //| lcall extern check_uint64
                 dasm_put(Dst, 201);
             } else {
+                //| lcall extern check_int64
                 dasm_put(Dst, 205);
             }
             goto dual;
 
         case INTPTR_TYPE:
+            //| mvn r1, #0 // -1
+            //| lcall extern check_intptr
             dasm_put(Dst, 209);
             goto single;
 
         case FLOAT_TYPE:
+            //| mvn r1, #0 // -1
+            //| lcall extern check_float
             dasm_put(Dst, 214);
             goto single;
 
         case DOUBLE_TYPE:
+            //| mvn r1, #0 // -1
+            //| lcall extern check_double
             dasm_put(Dst, 219);
             goto dual;
 
         single:
+            //| mov DATA, r0
+            //| mvn r1, #2 // -3
+            //| lcall extern lua_settop
+            //| mov r0, DATA
             dasm_put(Dst, 224);
             lua_pop(L, 1);
             break;
 
         dual:
+            //| mov DATA, r0
+            //| mov DATA2, r1
+            //| mvn r1, #2 // -3
+            //| lcall extern lua_settop
+            //| mov r0, DATA
+            //| mov r1, DATA2
             dasm_put(Dst, 231);
             lua_pop(L, 1);
             break;
@@ -803,6 +931,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
         }
     }
 
+    //| ldmia sp, {TOP, L_ARG, DATA, DATA2, sp, pc}
     dasm_put(Dst, 240);
 
     lua_pop(L, 1); /* upval table - already in registry */
@@ -844,16 +973,36 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
 
     dasm_setup(Dst, build_actionlist);
 
+    //| mov r12, sp
+    //| push {r0}
+    //| push {TOP, L_ARG, DATA, DATA2, r11, r12, lr}
+    //| sub r11, r12, #4
+    //| mov L_ARG, r0
+    //| lcall extern lua_gettop
+    //| mov TOP, r0
+    //| cmp TOP, #nargs
+    //| // these should really be in globals - but for some reason dynasm breaks when you do that
     dasm_put(Dst, 242, nargs);
     if (ct->has_var_arg) {
+        //| bge >1
+        //| load32 r1, "too few arguments"
+        //| lcall extern luaL_error
+        //|1:
         dasm_put(Dst, 254, (uintptr_t)("too few arguments"));
     } else {
+        //| beq >1
+        //| load32 r1, "incorrect number of arguments"
+        //| lcall extern luaL_error
+        //|1:
         dasm_put(Dst, 266, (uintptr_t)("incorrect number of arguments"));
     }
 
     /* reserve enough stack space for all of the arguments (8 bytes per
      * argument for double and maintains alignment). Add an extra 16 bytes so
      * that the pop {r0, r1, r2, r3} doesn't clean out our stack frame */
+    //| sub sp, sp, TOP, lsl #3
+    //| sub sp, sp, #16
+    //| mov DATA, sp
     dasm_put(Dst, 278);
 
     for (i = 1; i <= nargs; i++) {
@@ -864,70 +1013,107 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             lua_getuservalue(L, -1);
             num_upvals += 2;
 
+            //| ldr r3, [pc, #4]
+            //| ldr r2, [pc, #4]
+            //| b >1
+            //|.long mt, lua_upvalueindex(num_upvals)
+            //|1:
+            //| mov r1, #i
+            //| mov r0, L_ARG
             dasm_put(Dst, 282, (uintptr_t)(mt), (uintptr_t)(lua_upvalueindex(num_upvals)), i);
 
             if (mt->pointers || mt->is_reference) {
+                //| bl extern to_typed_pointer
                 dasm_put(Dst, 293);
             } else if (mt->type == FUNCTION_PTR_TYPE) {
+                //| bl extern to_typed_function
                 dasm_put(Dst, 296);
             } else if (mt->type == ENUM_TYPE) {
+                //| bl extern to_enum
                 dasm_put(Dst, 299);
             }
 
+            //| str r0, [DATA], #4
             dasm_put(Dst, 302);
 
         } else {
             lua_pop(L, 1);
+            //| mov r1, #i
             dasm_put(Dst, 304, i);
 
             switch (mt->type) {
             case INT8_TYPE:
+                //| lcall extern check_int32
                 dasm_put(Dst, 307);
                 if (mt->is_unsigned) {
+                    //| and r0, r0, #0xFF
                     dasm_put(Dst, 311);
                 } else {
+                    //| mov r0, r0, lsl #24
+                    //| mov r0, r0, asr #24                
                     dasm_put(Dst, 313);
                 }
+                //| str r0, [DATA], #4
                 dasm_put(Dst, 316);
                 break;
 
             case INT16_TYPE:
+                //| lcall extern check_int32
                 dasm_put(Dst, 318);
                 if (mt->is_unsigned) {
+                    //| mov r0, r0, lsl #16
+                    //| mov r0, r0, lsr #16
                     dasm_put(Dst, 322);
                 } else {
+                    //| mov r0, r0, lsl #16
+                    //| mov r0, r0, asr #16                
                     dasm_put(Dst, 325);
                 }
+                //| str r0, [DATA], #4
                 dasm_put(Dst, 328);
                 break;
 
             case INT32_TYPE:
                 if (mt->is_unsigned) {
+                    //| lcall extern check_uint32
                     dasm_put(Dst, 330);
                 } else {
+                    //| lcall extern check_int32
                     dasm_put(Dst, 334);
                 }
+                //| str r0, [DATA], #4
                 dasm_put(Dst, 338);
                 break;
 
             case INT64_TYPE:
                 if (mt->is_unsigned) {
+                    //| lcall extern check_uint64
                     dasm_put(Dst, 340);
                 } else {
+                    //| lcall extern check_int64
                     dasm_put(Dst, 344);
                 }
+                //| str r0, [DATA], #4
+                //| str r1, [DATA], #4
                 dasm_put(Dst, 348);
                 break;
 
             case DOUBLE_TYPE:
+                //| lcall extern check_double
+                //| str r0, [DATA], #4
+                //| str r1, [DATA], #4
                 dasm_put(Dst, 351);
                 break;
 
             case INTPTR_TYPE:
+                //| lcall extern check_intptr
+                //| str r0, [DATA], #4
                 dasm_put(Dst, 357);
                 break;
 
             case FLOAT_TYPE:
+                //| lcall extern check_float
+                //| str r0, [DATA], #4
                 dasm_put(Dst, 362);
                 break;
 
@@ -938,14 +1124,31 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
     }
 
     if (ct->has_var_arg) {
+        //| mov r3, DATA
+        //| mov r2, TOP
+        //| mov r1, #nargs+1
+        //| lcall extern unpack_varargs_stack
         dasm_put(Dst, 367, nargs+1);
     }
 
+    //| load32 r0, &Dst->last_errno
+    //| ldr r0, [r0]
+    //| bl extern SetLastError
     dasm_put(Dst, 375, (uintptr_t)(&Dst->last_errno));
 
+    //| pop {r0, r1, r2, r3} // this pop is balanced with the sub sp, #16
+    //| bl extern FUNCTION
     dasm_put(Dst, 384);
 
+    //|.macro get_errno
+    //| bl extern GetLastError
+    //| load32 r1, &Dst->last_errno
+    //| str r0, [r1]
+    //|.endmacro
 
+    //|.macro return
+    //| ldmdb r11, {TOP, L_ARG, DATA, r11, sp, pc}
+    //|.endmacro
 
     lua_rawgeti(L, ct_usr, 0);
     mt = (const struct ctype*) lua_touserdata(L, -1);
@@ -953,27 +1156,67 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
     if (mt->pointers || mt->is_reference) {
         lua_getuservalue(L, -1);
         num_upvals += 2;
+        //| mov DATA, r0
+        //| get_errno
+        //| ldr r2, [pc, #4]
+        //| ldr r1, [pc, #4]
+        //| b >1
+        //|.long mt, lua_upvalueindex(num_upvals)
+        //|1:
+        //| lcall extern push_cdata
+        //| str DATA, [r0]
+        //| mov r0, #1
+        //| return
         dasm_put(Dst, 388, (uintptr_t)(&Dst->last_errno), (uintptr_t)(mt), (uintptr_t)(lua_upvalueindex(num_upvals)));
 
     } else {
         switch (mt->type) {
         case INT64_TYPE:
             num_upvals++;
+            //| mov DATA, r0
+            //| mov DATA2, r1
+            //| get_errno
+            //| lcall extern lua_pushnil
+            //| load32 r2, mt
+            //| mvn r1, #0 // -1
+            //| lcall extern push_cdata
+            //| str DATA, [r0]
+            //| str DATA2, [r0, #4]
+            //| mov r0, #1
+            //| return
             dasm_put(Dst, 411, (uintptr_t)(&Dst->last_errno), (uintptr_t)(mt));
             break;
 
         case INTPTR_TYPE:
             num_upvals++;
+            //| mov DATA, r0
+            //| get_errno
+            //| lcall extern lua_pushnil
+            //| load32 r2, mt
+            //| mvn r1, #0 // -1
+            //| lcall extern push_cdata
+            //| str DATA, [r0]
+            //| mov r0, #1
+            //| return
             dasm_put(Dst, 438, (uintptr_t)(&Dst->last_errno), (uintptr_t)(mt));
             break;
 
         case VOID_TYPE:
             lua_pop(L, 1);
+            //| get_errno
+            //| mov r0, #0
+            //| return
             dasm_put(Dst, 463, (uintptr_t)(&Dst->last_errno));
             break;
 
         case BOOL_TYPE:
             lua_pop(L, 1);
+            //| mov DATA, r0
+            //| get_errno
+            //| mov r1, DATA
+            //| lcall extern lua_pushboolean
+            //| mov r0, #1
+            //| return
             dasm_put(Dst, 474, (uintptr_t)(&Dst->last_errno));
             break;
 
@@ -982,22 +1225,43 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
         case INT32_TYPE:
         case ENUM_TYPE:
             lua_pop(L, 1);
+            //| mov DATA, r0
+            //| get_errno
+            //| mov r1, DATA
             dasm_put(Dst, 490, (uintptr_t)(&Dst->last_errno));
             if (mt->is_unsigned) {
+                //| lcall extern push_uint
                 dasm_put(Dst, 501);
             } else {
+                //| lcall extern push_int
                 dasm_put(Dst, 505);
             }
+            //| mov r0, #1
+            //| return
             dasm_put(Dst, 509);
             break;
 
         case FLOAT_TYPE:
             lua_pop(L, 1);
+            //| mov DATA, r0
+            //| get_errno
+            //| mov r1, DATA
+            //| lcall extern push_float
+            //| mov r0, #1
+            //| return
             dasm_put(Dst, 512, (uintptr_t)(&Dst->last_errno));
             break;
 
         case DOUBLE_TYPE:
             lua_pop(L, 1);
+            //| mov DATA, r0
+            //| mov DATA2, r1
+            //| get_errno
+            //| mov r2, DATA2
+            //| mov r1, DATA
+            //| lcall extern lua_pushnumber
+            //| mov r0, #1
+            //| return
             dasm_put(Dst, 528, (uintptr_t)(&Dst->last_errno));
             break;
 
