@@ -22,9 +22,9 @@ local function loadlib(lib)
 end
 
 if _VERSION == 'Lua 5.1' then
-    dlls.__cdecl = loadlib('ffi/libtest')
+    dlls.__cdecl = loadlib('ffi_test/libtest')
 else
-    dlls.__cdecl = ffi.load(package.searchpath('ffi.libtest', package.cpath))
+    dlls.__cdecl = ffi.load(package.searchpath('ffi_test.libtest', package.cpath))
 end
 
 if ffi.arch == 'x86' and ffi.os == 'Windows' then
@@ -342,6 +342,7 @@ local i64 = ffi.typeof('int64_t')
 
 local first = true
 
+print(debug.getinfo(1).source, debug.getinfo(1).currentline);
 for convention,c in pairs(dlls) do
     check(c.add_i8(1,1), 2)
     check(c.add_i8(256,1), 1)

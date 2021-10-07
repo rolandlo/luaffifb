@@ -8,10 +8,31 @@
  */
 #include "ffi.h"
 
+
+#include <unistd.h>
+
+#include <execinfo.h>
+#define STACK_TRACE() {\
+    void* callstack[128]; \
+    int i, frames = backtrace(callstack, 128); \
+    backtrace_symbols_fd(callstack, frames, STDERR_FILENO); \
+}
 static cfunction compile(Dst_DECL, lua_State* L, cfunction func, int ref);
 
 static void* reserve_code(struct jit* jit, lua_State* L, size_t sz);
 static void commit_code(struct jit* jit, void* p, size_t sz);
+
+static void debug_statement()
+{
+    printf("Here from debugger\n");
+    return;
+}
+
+static void debug_statement_with_arg(void * p)
+{
+    printf("Here from debugger inp = [%p]\n", p);
+    return;
+}
 
 static void push_int(lua_State* L, int val)
 { lua_pushinteger(L, val); }
@@ -45,6 +66,9 @@ static void SetLastError(int err)
 #elif defined __arm__ || defined __arm || defined __ARM__ || defined __ARM || defined ARM || defined _ARM_ || defined ARMV4I || defined _M_ARM
 #include "dynasm/dasm_arm.h"
 #include "call_arm.h"
+#elif defined __aarch64__
+#include "dynasm/dasm_arm64.h"
+#include "call_arm64.h"
 #else
 #include "dynasm/dasm_x86.h"
 #include "call_x86.h"
@@ -57,6 +81,48 @@ struct jit_head {
 };
 
 #define LINKTABLE_MAX_SIZE (sizeof(extnames) / sizeof(extnames[0]) * (JUMP_SIZE))
+#define LINKTABLE_MAX_NUM (sizeof(extnames) / sizeof(extnames[0]))
+
+static void dump_externs(struct jit* jit)
+{
+
+    struct page* page = jit->pages[jit->pagenum-1];
+    unsigned int * ip = (unsigned int*)(page+1);
+    printf("Offset = [%ld]\n", page->off);
+    printf("size = [%ld]\n", page->off);
+    for (int i = 0, func_ind = 0; (i < LINKTABLE_MAX_NUM-1) ; i++, func_ind++) {
+        printf("holder = [%p] func address = [%p]\n", ((char*)ip), *(cfunction*)((char*)ip));
+        ip += 2;
+        printf("[%p]:ins(%d) = [%0X]\n", (ip), func_ind, *(ip));
+        printf("[%p]:ins(%d) = [%0X]\n", (ip+1), func_ind, *(ip+1));
+        printf("[%p]:ins(%d) = [%0X]\n", (ip+2), func_ind, *(ip+2));
+        ip+=3;
+    }
+    return;
+}
+
+static void dump_code(struct jit* jit, char * ccode)
+{
+    struct page* page = jit->pages[jit->pagenum-1];
+    unsigned char * code = (unsigned char*)(page+1);
+    code += LINKTABLE_MAX_SIZE-20;
+    struct jit_head *jh1 = (struct jit_head *)code;
+    code = (unsigned char*)((struct jit_head *)code+1);
+    struct jit_head *jh2 = (struct jit_head *)code;
+    code = (unsigned char*)((struct jit_head *)code+1);
+    printf("jh->size = %zu\n", jh2->size);
+    printf("jh->ref = %d\n", jh2->ref);
+    printf("jh->func = %p content = %p\n", (void*)jh2->jump, *(cfunction*)((void*)jh2->jump));
+    printf("ins[1] = [%X]\n", *(unsigned int *)((char*)(jh2->jump)+8));
+    printf("ins[2] = [%X]\n", *(unsigned int *)((char*)(jh2->jump)+12));
+    printf("ins[3] = [%X]\n", *(unsigned int *)((char*)(jh2->jump)+16));
+    printf("computed code = [%p]\n", code);
+    unsigned int * ip = (unsigned int*)ccode;
+    for (int i = 0; (char*)&ip[i] < ((char*)page + page->off); i++) {
+        printf("[%p]:ins(%02d) = [%0X]\n", &(ip[i]), i, ip[i]);
+    }
+
+}
 
 static cfunction compile(struct jit* jit, lua_State* L, cfunction func, int ref)
 {
@@ -64,15 +130,25 @@ static cfunction compile(struct jit* jit, lua_State* L, cfunction func, int ref)
     size_t codesz;
     int err;
 
-    dasm_checkstep(jit, -1);
+    //printf("%s:%d\n", __FILE__, __LINE__);
+    if ( 0 != dasm_checkstep(jit, -1)) {
+        char buf[32];
+        sprintf(buf, "%x", err);
+        printf("%s:%d\n", __FILE__, __LINE__);
+        luaL_error(L, "dasm_link error %s", buf);
+    }
     if ((err = dasm_link(jit, &codesz)) != 0) {
         char buf[32];
         sprintf(buf, "%x", err);
+        printf("%s:%d\n", __FILE__, __LINE__);
         luaL_error(L, "dasm_link error %s", buf);
     }
 
+    size_t sz = codesz;
     codesz += sizeof(struct jit_head);
     code = (struct jit_head*) reserve_code(jit, L, codesz);
+	//printf("%s:%d where jit_jead is written = [%p] its size=[%zu]\n", __FILE__, __LINE__, code, sizeof(struct jit_head));
+    //printf("%s:%d codesz=[%zu]\n", __FILE__, __LINE__, codesz);
     code->ref = ref;
     code->size = codesz;
     compile_extern_jump(jit, L, func, code->jump);
@@ -84,7 +160,14 @@ static cfunction compile(struct jit* jit, lua_State* L, cfunction func, int ref)
         luaL_error(L, "dasm_encode error %s", buf);
     }
 
+    //printf("jit_head_size = [%zu]\n", sizeof(struct jit_head));
+    //printf("jh.size = [%zu]\n", code->size);
+    //printf("jh.ref = [%d]\n", code->ref);
+    //printf("jh.func = [%p]\n", (cfunction)code->jump);
+    //printf("jh.stub = [%0x]\n", *((int*)((char*)(code->jump+8))));
     commit_code(jit, code, codesz);
+    //dump_externs(jit);
+    //dump_code(jit, (char*)(code+1));
     return (cfunction) (code+1);
 }
 
@@ -98,25 +181,41 @@ int get_extern(struct jit* jit, uint8_t* addr, int idx, int type)
     uint8_t* jmp;
     ptrdiff_t off;
 
+	//printf("%s:%d  h = [%p] page=[%p] off=[%zu] type=[%d]\n", __FILE__, __LINE__, h, page, page->off, type);
     if (idx == jit->function_extern) {
        jmp = h->jump;
+       //printf("%s:%d func(jump) = [%p]  addr = [%p]\n", __FILE__, __LINE__, *((cfunction*)jmp), addr);
     } else {
        jmp = jumps[idx];
+       //printf("%s:%d func(jump) = [%p]  addr = [%p]\n", __FILE__, __LINE__, *((cfunction*)jmp), addr);
     }
+	//printf("%s:%d h->jump = [%p] jumps[idx] = [%p] func(jumps[idx]) = [%p]\n", __FILE__, __LINE__,  h->jump, jumps[idx], *((cfunction*)jumps[idx]));
 
-    /* compensate for room taken up for the offset so that we can work rip
-     * relative */
-    addr += BRANCH_OFF;
+	if (type) {
+		/* compensate for room taken up for the offset so that we can work rip
+		 * relative */
+		addr += BRANCH_OFF;
+        //printf("%s:%d addr = [%p]\n", __FILE__, __LINE__, addr);
 
-    /* see if we can fit the offset in the branch displacement, if not use the
-     * jump instruction */
-    off = *(uint8_t**) jmp - addr;
+		/* see if we can fit the offset in the branch displacement, if not use the
+		 * jump instruction */
+		off = *(uint8_t**) jmp - addr;
+        //printf("%s:%d jmp = [%p] extern[%d]\n", __FILE__, __LINE__, jmp, (idx == jit->function_extern));
 
-    if (MIN_BRANCH <= off && off <= MAX_BRANCH) {
-        return (int32_t) off;
-    } else {
-        return (int32_t)(jmp + sizeof(uint8_t*) - addr);
-    }
+		if (MIN_BRANCH <= off && off <= MAX_BRANCH) {
+			//printf("%s:%d jmp = [%p] funca=[%p] off = [%zd]\n", __FILE__, __LINE__, jmp, *(uint8_t**)(jmp), off);
+            //printf("idx = [%d] ins_addr = [%p] [%0x]\n", idx, (jmp+sizeof(uint8_t*)), *(int32_t*)((uint8_t*)jmp+sizeof(uint8_t*)));
+			return (int32_t) off;
+		} else {
+			//printf("%s:%d jmp = [%p] funca=[%p] off = [%zd]\n", __FILE__, __LINE__, jmp, *(uint8_t**)(jmp), off);
+            //printf("idx = [%d] ins_addr = [%p][%0x]\n", idx, (jmp+sizeof(uint8_t*)), *(int32_t*)((uint8_t*)jmp+sizeof(uint8_t*)));
+			//printf("%s:%d [%zd]\n", __FILE__, __LINE__, (jmp + sizeof(uint8_t*) - addr));
+			return (int32_t)(jmp + sizeof(uint8_t*) - addr);
+		}
+	}
+	else {
+		return (uint32_t) jmp;
+	}
 }
 
 static void* reserve_code(struct jit* jit, lua_State* L, size_t sz)
@@ -134,12 +233,14 @@ static void* reserve_code(struct jit* jit, lua_State* L, size_t sz)
         jit->pages = (struct page**) realloc(jit->pages, (++jit->pagenum) * sizeof(jit->pages[0]));
 
         size = ALIGN_UP(sz + LINKTABLE_MAX_SIZE + sizeof(struct page), jit->align_page_size);
+        //printf("%s:%d [%zu] align up [%zu] \n", __FILE__, __LINE__, sz + LINKTABLE_MAX_SIZE + sizeof(struct page), size);
 
         page = (struct page*) AllocPage(size);
         jit->pages[jit->pagenum-1] = page;
         pdata = (uint8_t*) page;
         page->size = size;
         page->off = sizeof(struct page);
+        //printf("Start pos = [%p]\n", pdata + page->off);
 
         lua_newtable(L);
 
@@ -172,6 +273,8 @@ static void* reserve_code(struct jit* jit, lua_State* L, size_t sz)
         ADDFUNC(NULL, push_uint);
         ADDFUNC(NULL, lua_pushinteger);
         ADDFUNC(NULL, push_float);
+        ADDFUNC(NULL, debug_statement);
+        ADDFUNC(NULL, debug_statement_with_arg);
         ADDFUNC(jit->kernel32_dll, SetLastError);
         ADDFUNC(jit->kernel32_dll, GetLastError);
         ADDFUNC(jit->lua_dll, luaL_error);
@@ -199,12 +302,14 @@ static void* reserve_code(struct jit* jit, lua_State* L, size_t sz)
                     luaL_error(L, "internal error: missing link for %s", extnames[i]);
                 }
 
+				//printf("%s:%d i = [%d] name=[%s] func=[%p] jmp=[%p]\n", __FILE__, __LINE__, i, extnames[i], func, pdata + page->off);
                 compile_extern_jump(jit, L, func, pdata + page->off);
                 lua_pop(L, 1);
             }
 
             page->off += JUMP_SIZE;
         }
+		//printf("%s:%d pdata = [%p] page=[%p] off=%zu\n", __FILE__, __LINE__, pdata, page, page->off);
 
         page->freed = page->off;
         lua_pop(L, 1);
@@ -214,6 +319,7 @@ static void* reserve_code(struct jit* jit, lua_State* L, size_t sz)
         EnableWrite(page, page->size);
     }
 
+	//printf("%s:%d where jit_head will be written = [%p]\n", __FILE__, __LINE__, (uint8_t*)page + page->off);
     return (uint8_t*) page + page->off;
 }
 
@@ -236,6 +342,7 @@ static void commit_code(struct jit* jit, void* code, size_t sz)
  */
 void push_func_ref(lua_State* L, cfunction func)
 {
+	//printf("%s:%d\n", __FILE__, __LINE__);
     struct jit_head* h = ((struct jit_head*) func) - 1;
     lua_rawgeti(L, LUA_REGISTRYINDEX, h->ref);
 }

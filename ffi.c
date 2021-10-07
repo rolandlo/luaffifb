@@ -406,7 +406,24 @@ void unpack_varargs_stack(lua_State* L, int first, int last, char* to)
     int i;
 
     for (i = first; i <= last; i++) {
+#ifdef ARCH_ARM64
+		/* In 64 bit arm on all OS except macos stack arguments are 8 or 16 byte aligned */
+		/* TODO: PORTING TO MAC ABI convention */
+		{
+			size_t sz = unpack_vararg(L, i, to);
+			if (sz > 8) {
+				/* Aligned to 16 bytes */
+				sz += 16 - (sz % 16);
+				to += sz;
+			}
+			else {
+				/* Aligned to 8 bytes */
+				to += 8;
+			}
+		}
+#else
         to += unpack_vararg(L, i, to);
+#endif
     }
 }
 
@@ -423,7 +440,24 @@ void unpack_varargs_stack_skip(lua_State* L, int first, int last, int ints_to_sk
             continue;
         }
 
+#ifdef ARCH_ARM64
+		/* In 64 bit arm on all OS except macos stack arguments are 8 or 16 byte aligned */
+		/* TODO: PORTING TO MAC ABI convention */
+		{
+			size_t sz = unpack_vararg(L, i, to);
+			if (sz > 8) {
+				/* Aligned to 16 bytes */
+				sz += 16 - (sz % 16);
+				to += sz;
+			}
+			else {
+				/* Aligned to 8 bytes */
+				to += 8;
+			}
+		}
+#else
         to += unpack_vararg(L, i, to);
+#endif
     }
 }
 
@@ -1499,6 +1533,7 @@ static int cdata_free(lua_State* L)
 
 static int cdata_set(lua_State* L)
 {
+	//printf("%s:%d\n", __FILE__, __LINE__);
     struct ctype ct;
     cfunction* p = (cfunction*) check_cdata(L, 1, &ct);
     luaL_checktype(L, 2, LUA_TFUNCTION);
@@ -1550,6 +1585,7 @@ static int cdata_call(lua_State* L)
 
     if (!lua_isfunction(L, -1)) {
         lua_pop(L, 1);
+		printf("%s:%d Calling compilation here in cdata_call\n", __FILE__, __LINE__);
         compile_function(L, *p, -1, &ct);
 
         assert(lua_gettop(L) == top + 2); /* uv, closure */
@@ -2836,6 +2872,7 @@ static void* find_symbol(lua_State* L, int modidx, const char* asmname)
 
     libs = (void**) lua_touserdata(L, modidx);
     num = lua_rawlen(L, modidx) / sizeof(void*);
+	//printf("%s:%d num = [%zu] name = [%s]\n", __FILE__, __LINE__, num, asmname);
 
     for (i = 0; i < num && sym == NULL; i++) {
         if (libs[i]) {
@@ -2893,13 +2930,15 @@ static int cmodule_index(lua_State* L)
 {
     const char* asmname;
     struct ctype ct;
-    void *sym;
+    void *sym = 0;
 
+	//printf("%s:%d # = %d\n", __FILE__, __LINE__, lua_gettop(L));
     lua_settop(L, 2);
 
     /* see if we have already loaded the function */
     lua_getuservalue(L, 1);
     lua_pushvalue(L, 2);
+	//printf("%s:%d L[2] = %s\n", __FILE__, __LINE__, lua_tostring(L, 2));
     lua_rawget(L, -2);
     if (!lua_isnil(L, -1)) {
         return 1;
@@ -2916,7 +2955,9 @@ static int cmodule_index(lua_State* L)
     lua_pop(L, 2);
 
     /* lookup_global pushes the ct_usr */
+	//printf("%s:%d # = %d\n", __FILE__, __LINE__, lua_gettop(L));
     sym = lookup_global(L, 1, 2, &asmname, &ct);
+	//printf("%s:%d # = %d\n", __FILE__, __LINE__, lua_gettop(L));
 
 #if defined _WIN32 && !defined _WIN64 && (defined __i386__ || defined _M_IX86)
     if (!sym && ct.type == FUNCTION_TYPE) {
@@ -2941,6 +2982,7 @@ static int cmodule_index(lua_State* L)
     assert(lua_gettop(L) == 3); /* module, name, ct_usr */
 
     if (ct.type == FUNCTION_TYPE) {
+		//printf("%s:%d Calling compilation here in cmodule_index sym=[%p]\n", __FILE__, __LINE__, sym);
         compile_function(L, (cfunction) sym, -1, &ct);
         assert(lua_gettop(L) == 4); /* module, name, ct_usr, function */
 
@@ -3453,21 +3495,21 @@ static int setup_upvals(lua_State* L)
 #if defined ARCH_X86 || defined ARCH_ARM
     lua_pushboolean(L, 1);
     lua_setfield(L, -2, "32bit");
-#elif defined ARCH_X64 || defined ARCH_PPC64
+#elif defined ARCH_X64 || defined ARCH_PPC64 || defined ARCH_ARM64
     lua_pushboolean(L, 1);
     lua_setfield(L, -2, "64bit");
 #else
 #error
 #endif
 
-#if defined ARCH_X86 || defined ARCH_X64 || defined ARCH_ARM || defined ARCH_PPC64
+#if defined ARCH_X86 || defined ARCH_X64 || defined ARCH_ARM || defined ARCH_PPC64 || defined ARCH_ARM64
     lua_pushboolean(L, 1);
     lua_setfield(L, -2, "le");
 #else
 #error
 #endif
 
-#if defined ARCH_X86 || defined ARCH_X64 || defined ARCH_PPC64
+#if defined ARCH_X86 || defined ARCH_X64 || defined ARCH_PPC64 || defined ARCH_ARM64
     lua_pushboolean(L, 1);
     lua_setfield(L, -2, "fpu");
 #elif defined ARCH_ARM
@@ -3486,7 +3528,6 @@ static int setup_upvals(lua_State* L)
     lua_setfield(L, -2, "__mode");
     lua_setmetatable(L, -2);
     lua_pop(L, 1); /* gc table */
-
 
     /* ffi.os */
 #if defined OS_CE
@@ -3514,6 +3555,8 @@ static int setup_upvals(lua_State* L)
     lua_pushliteral(L, "x64");
 #elif defined ARCH_ARM
     lua_pushliteral(L, "arm");
+#elif defined ARCH_ARM64
+    lua_pushliteral(L, "arm64");
 #elif defined ARCH_PPC64
     lua_pushliteral(L, "ppc64");
 #else

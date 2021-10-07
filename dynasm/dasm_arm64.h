@@ -213,6 +213,137 @@ static int dasm_imm13(int lo, int hi)
   return -1;
 }
 
+void dasm_debug_put(Dst_DECL, int start, ...)
+{
+  va_list ap;
+  dasm_State *D = Dst_REF;
+  dasm_ActList p = D->actionlist + start;
+  dasm_Section *sec = D->section;
+  int pos = sec->pos, ofs = sec->ofs;
+  int *b;
+
+  if (pos >= sec->epos) {
+    DASM_M_GROW(Dst, int, sec->buf, sec->bsize,
+      sec->bsize + 2*DASM_MAXSECPOS*sizeof(int));
+    sec->rbuf = sec->buf - DASM_POS2BIAS(pos);
+    sec->epos = (int)sec->bsize/sizeof(int) - DASM_MAXSECPOS+DASM_POS2BIAS(pos);
+  }
+
+  b = sec->rbuf;
+  b[pos++] = start;
+
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+  va_start(ap, start);
+  while (1) {
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+    unsigned int ins = *p++;
+    unsigned int action = (ins >> 16);
+    if (action >= DASM__MAX) {
+      ofs += 4;
+    } else {
+      int *pl, n = action >= DASM_REL_PC ? va_arg(ap, int) : 0;
+  printf("%s:%d pos = [%d] n = [%0X] D->status = [%d] [%d]\n", __FILE__, __LINE__, pos, n, D->status, start);
+      switch (action) {
+      case DASM_STOP: goto stop;
+      case DASM_SECTION:
+	n = (ins & 255); CK(n < D->maxsection, RANGE_SEC);
+	D->section = &D->sections[n]; goto stop;
+      case DASM_ESC: p++; ofs += 4; break;
+      case DASM_REL_EXT: break;
+      case DASM_ALIGN: ofs += (ins & 255); b[pos++] = ofs; break;
+      case DASM_REL_LG:
+	n = (ins & 2047) - 10; pl = D->lglabels + n;
+	/* Bkwd rel or global. */
+	if (n >= 0) { CK(n>=10||*pl<0, RANGE_LG); CKPL(lg, LG); goto putrel; }
+	pl += 10; n = *pl;
+	if (n < 0) n = 0;  /* Start new chain for fwd rel if label exists. */
+	goto linkrel;
+      case DASM_REL_PC:
+	pl = D->pclabels + n; CKPL(pc, PC);
+      putrel:
+	n = *pl;
+	if (n < 0) {  /* Label exists. Get label pos and store it. */
+	  b[pos] = -n;
+	} else {
+      linkrel:
+	  b[pos] = n;  /* Else link to rel chain, anchored at label. */
+	  *pl = pos;
+	}
+	pos++;
+	break;
+      case DASM_LABEL_LG:
+	pl = D->lglabels + (ins & 2047) - 10; CKPL(lg, LG); goto putlabel;
+      case DASM_LABEL_PC:
+	pl = D->pclabels + n; CKPL(pc, PC);
+      putlabel:
+	n = *pl;  /* n > 0: Collapse rel chain and replace with label pos. */
+	while (n > 0) { int *pb = DASM_POS2PTR(D, n); n = *pb; *pb = pos;
+	}
+	*pl = -pos;  /* Label exists now. */
+	b[pos++] = ofs;  /* Store pass1 offset estimate. */
+	break;
+      case DASM_IMM:
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+	CK((n & ((1<<((ins>>10)&31))-1)) == 0, RANGE_I);
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+	n >>= ((ins>>10)&31);
+#ifdef DASM_CHECKS
+	if ((ins & 0x8000)) {
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+	  CK(((n + (1<<(((ins>>5)&31)-1)))>>((ins>>5)&31)) == 0, RANGE_I);
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+	}
+	else {
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+	  CK((n>>((ins>>5)&31)) == 0, RANGE_I);
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+	}
+#endif
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+	b[pos++] = n;
+	break;
+      case DASM_IMM6:
+	CK((n >> 6) == 0, RANGE_I);
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+	b[pos++] = n;
+	break;
+      case DASM_IMM12:
+	CK(dasm_imm12((unsigned int)n) != -1, RANGE_I);
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+	b[pos++] = n;
+	break;
+      case DASM_IMM13W:
+	CK(dasm_imm13(n, n) != -1, RANGE_I);
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+	b[pos++] = n;
+	break;
+      case DASM_IMM13X: {
+	int m = va_arg(ap, int);
+	CK(dasm_imm13(n, m) != -1, RANGE_I);
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+	b[pos++] = n;
+	b[pos++] = m;
+	break;
+	}
+      case DASM_IMML: {
+#ifdef DASM_CHECKS
+	int scale = (p[-2] >> 30);
+	CK((!(n & ((1<<scale)-1)) && (unsigned int)(n>>scale) < 4096) ||
+	   (unsigned int)(n+256) < 512, RANGE_I);
+#endif
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+	b[pos++] = n;
+	break;
+	}
+      }
+    }
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
+  }
+stop:
+  va_end(ap);
+  sec->pos = pos;
+  sec->ofs = ofs;
+}
 /* Pass 1: Store actions and args, link branches/labels, estimate offsets. */
 void dasm_put(Dst_DECL, int start, ...)
 {
@@ -341,8 +472,11 @@ int dasm_link(Dst_DECL, size_t *szp)
   if (D->status != DASM_S_OK) return D->status;
   {
     int pc;
-    for (pc = 0; pc*sizeof(int) < D->pcsize; pc++)
-      if (D->pclabels[pc] > 0) return DASM_S_UNDEF_PC|pc;
+    for (pc = 0; pc*sizeof(int) < D->pcsize; pc++) {
+      if (D->pclabels[pc] > 0) {
+		  return DASM_S_UNDEF_PC|pc;
+	  }
+	}
   }
 #endif
 
@@ -402,6 +536,7 @@ int dasm_encode(Dst_DECL, void *buffer)
   dasm_State *D = Dst_REF;
   char *base = (char *)buffer;
   unsigned int *cp = (unsigned int *)buffer;
+  unsigned int *base_cp = cp;
   int secnum;
 
   /* Encode all code sections. No support for data sections (yet). */
@@ -420,6 +555,7 @@ int dasm_encode(Dst_DECL, void *buffer)
 	case DASM_STOP: case DASM_SECTION: goto stop;
 	case DASM_ESC: *cp++ = *p++; break;
 	case DASM_REL_EXT:
+	  //printf("%s:%d index = [%ld] cp-1 = [%p]\n", __FILE__, __LINE__, ((long)((char*)cp-(char*)buffer -4))/4, ((char*)cp - 4));
 	  n = DASM_EXTERN(Dst, (unsigned char *)cp, (ins&2047), !(ins&2048));
 	  goto patchrel;
 	case DASM_ALIGN:

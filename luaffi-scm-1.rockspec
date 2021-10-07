@@ -2,14 +2,14 @@ package = "luaffi"
 version = "scm-1"
 
 source = {
-   url = "git://github.com/facebook/luaffifb.git",
+   url = "git://github.com/Tekenlight/luaffifb.git",
 }
 
 description = {
    summary = "FFI library for calling C functions from lua",
    detailed = [[
    ]],
-   homepage = "https://github.com/facebook/luaffifb",
+   homepage = "https://github.com/Tekenlight/luaffifb",
    license = "BSD"
 }
 
@@ -28,8 +28,8 @@ build = {
             "call.c", "ctype.c", "ffi.c", "parser.c",
          }
       },
-      ['ffi.libtest'] = 'test.c',
-      ['ffi.test'] = 'test.lua',
+      ['ffi_libtest.libtest'] = 'test.c',
+      ['ffi_test.test'] = 'test.lua',
 	  bit = "bit.lua",
    }
 }

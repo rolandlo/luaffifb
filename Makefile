@@ -17,12 +17,12 @@ clean:
 	rm -f *.o *.so *.dylib
 
 headers:
-	$(MAKE) call_x86.h call_x64.h call_x64win.h call_arm.h
+	$(MAKE) call_x86.h call_x64.h call_x64win.h call_arm.h call_arm64.h
 
 call_x86.h: call_x86.dasc dynasm/*.lua
 	$(LUA) dynasm/dynasm.lua -L -o $@ $<
 
-call_x64.h: call_x86.dasc dynasm/*.lua
+call_x64.h: call_x64.dasc dynasm/*.lua
 	$(LUA) dynasm/dynasm.lua -D X64 -L -o $@ $<
 
 call_x64win.h: call_x86.dasc dynasm/*.lua
@@ -30,3 +30,7 @@ call_x64win.h: call_x86.dasc dynasm/*.lua
 
 call_arm.h: call_arm.dasc dynasm/*.lua
 	$(LUA) dynasm/dynasm.lua -L -o $@ $<
+
+call_arm64.h: call_arm64.dasc dynasm/*.lua
+	$(LUA) dynasm/dynasm.lua -L -o $@ $<
+
