@@ -1691,10 +1691,10 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
                 //| call_ri extern check_int32, L_ARG, i
                 //| cmp x0, #0
                 //| beq >1
-				//| mov b0, #1
-				//| 1:
-				//| ubfm x0, x0, #0, #7
-				dasm_put(Dst, 210, i);
+                //| mov b0, #1
+                //| 1:
+                //| ubfm x0, x0, #0, #7
+                dasm_put(Dst, 210, i);
                 add_int(Dst, ct, &reg, 0);
                 lua_pop(L, 1);
                 break;
@@ -1894,9 +1894,9 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             //| get_errno
             //| mov32 w9, lua_upvalueindex(num_upvals)
             //| sxtw x9, w9
-			//| call_rwp extern push_cdata, L_ARG, w9, mbr_ct
-			//| ldr x9, [sp, #32]
-			//| str x9, [x0] // *(void**) cdata = val
+            //| call_rwp extern push_cdata, L_ARG, w9, mbr_ct
+            //| ldr x9, [sp, #32]
+            //| str x9, [x0] // *(void**) cdata = val
             //| lua_return_arg
             dasm_put(Dst, 423, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
             break;
@@ -1972,12 +1972,12 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             lua_pop(L, 1);
             if (mbr_ct->is_unsigned) {
                 //| // movzx eax, al
-				//| ubfm x0, x0, #0, #7
-				dasm_put(Dst, 662);
+                //| ubfm x0, x0, #0, #7
+                dasm_put(Dst, 662);
             } else {
                 //| //movsx eax, al
-				//| sbfm x0, x0, #0, #7
-				dasm_put(Dst, 664);
+                //| sbfm x0, x0, #0, #7
+                dasm_put(Dst, 664);
             }
             //| lua_return_int
             dasm_put(Dst, 666, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
@@ -1987,12 +1987,12 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             lua_pop(L, 1);
             if (mbr_ct->is_unsigned) {
                 //| //movzx eax, ax
-				//| ubfm x0, x0, #0, #15
-				dasm_put(Dst, 694);
+                //| ubfm x0, x0, #0, #15
+                dasm_put(Dst, 694);
             } else {
                 //| //movsx eax, ax
-				//| sbfm x0, x0, #0, #15
-				dasm_put(Dst, 696);
+                //| sbfm x0, x0, #0, #15
+                dasm_put(Dst, 696);
             }
             //| lua_return_int
             dasm_put(Dst, 698, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
