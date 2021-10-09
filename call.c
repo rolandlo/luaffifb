@@ -22,6 +22,18 @@ static cfunction compile(Dst_DECL, lua_State* L, cfunction func, int ref);
 static void* reserve_code(struct jit* jit, lua_State* L, size_t sz);
 static void commit_code(struct jit* jit, void* p, size_t sz);
 
+static void debug_int(int f)
+{
+    printf("Here from debugger int = [%d]\n", f);
+    return;
+}
+
+static void debug_float(double f)
+{
+    printf("Here from debugger float = [%f]\n", f);
+    return;
+}
+
 static void debug_statement()
 {
     printf("Here from debugger\n");
@@ -273,6 +285,8 @@ static void* reserve_code(struct jit* jit, lua_State* L, size_t sz)
         ADDFUNC(NULL, push_uint);
         ADDFUNC(NULL, lua_pushinteger);
         ADDFUNC(NULL, push_float);
+        ADDFUNC(NULL, debug_int);
+        ADDFUNC(NULL, debug_float);
         ADDFUNC(NULL, debug_statement);
         ADDFUNC(NULL, debug_statement_with_arg);
         ADDFUNC(jit->kernel32_dll, SetLastError);

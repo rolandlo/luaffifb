@@ -342,7 +342,8 @@ complex_double check_complex_double(lua_State* L, int idx)
 complex_float check_complex_float(lua_State* L, int idx)
 {
     complex_double d = check_complex_double(L, idx);
-    return mk_complex_float(creal(d), cimag(d));
+    complex_float fc =  mk_complex_float(creal(d), cimag(d));
+    return fc;
 }
 
 static size_t unpack_vararg(lua_State* L, int i, char* to)
