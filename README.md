@@ -18,6 +18,7 @@ Platforms
 ---------
 Currently supported:
 - Linux x86/x64
+- Linux ARM Aarch64
 - OS X x86/x64
 
 Runs with Lua 5.1, 5.2, and 5.3

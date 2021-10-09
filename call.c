@@ -98,6 +98,7 @@ struct jit_head {
 static void dump_externs(struct jit* jit)
 {
 
+#ifdef ARCH_ARM64
     struct page* page = jit->pages[jit->pagenum-1];
     unsigned int * ip = (unsigned int*)(page+1);
     printf("Offset = [%ld]\n", page->off);
@@ -110,11 +111,13 @@ static void dump_externs(struct jit* jit)
         printf("[%p]:ins(%d) = [%0X]\n", (ip+2), func_ind, *(ip+2));
         ip+=3;
     }
+#endif
     return;
 }
 
 static void dump_code(struct jit* jit, char * ccode)
 {
+#ifdef ARCH_ARM64
     struct page* page = jit->pages[jit->pagenum-1];
     unsigned char * code = (unsigned char*)(page+1);
     code += LINKTABLE_MAX_SIZE-20;
@@ -133,7 +136,8 @@ static void dump_code(struct jit* jit, char * ccode)
     for (int i = 0; (char*)&ip[i] < ((char*)page + page->off); i++) {
         printf("[%p]:ins(%02d) = [%0X]\n", &(ip[i]), i, ip[i]);
     }
-
+#endif
+    return;
 }
 
 static cfunction compile(struct jit* jit, lua_State* L, cfunction func, int ref)
