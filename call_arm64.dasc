@@ -182,7 +182,30 @@
 | add sp, sp, #(16*8)
 |.endmacro
 
-|.macro call_fp_debug_1, one
+|.macro call_debug_float, one
+| sub sp, sp, #(16*8)
+| str d0,  [sp]
+| str d1,  [sp,#16]
+| str d2,  [sp,#32]
+| str d3,  [sp,#48]
+| str d4,  [sp,#64]
+| str d5,  [sp,#80]
+| str d6,  [sp,#96]
+| str d7,  [sp,#112]
+| fmov s0, one
+| bl extern debug_float
+| ldr d0,  [sp]
+| ldr d1,  [sp,#16]
+| ldr d2,  [sp,#32]
+| ldr d3,  [sp,#48]
+| ldr d4,  [sp,#64]
+| ldr d5,  [sp,#80]
+| ldr d6,  [sp,#96]
+| ldr d7,  [sp,#112]
+| add sp, sp, #(16*8)
+|.endmacro
+
+|.macro call_debug_double, one
 | sub sp, sp, #(16*8)
 | str d0,  [sp]
 | str d1,  [sp,#16]
@@ -193,7 +216,7 @@
 | str d6,  [sp,#96]
 | str d7,  [sp,#112]
 | fmov d0, one
-| bl extern debug_float
+| bl extern debug_double
 | ldr d0,  [sp]
 | ldr d1,  [sp,#16]
 | ldr d2,  [sp,#32]
@@ -809,6 +832,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
 
             case DOUBLE_TYPE:
                 | call_ri extern check_double, L_ARG, i
+                | call_debug_double d0
                 add_float(Dst, ct, &reg, 1);
                 lua_pop(L, 1);
                 break;

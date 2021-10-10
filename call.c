@@ -28,7 +28,13 @@ static void debug_int(int f)
     return;
 }
 
-static void debug_float(double f)
+static void debug_double(double f)
+{
+    printf("Here from debugger float = [%lf]\n", f);
+    return;
+}
+
+static void debug_float(float f)
 {
     printf("Here from debugger float = [%f]\n", f);
     return;
@@ -291,6 +297,7 @@ static void* reserve_code(struct jit* jit, lua_State* L, size_t sz)
         ADDFUNC(NULL, push_float);
         ADDFUNC(NULL, debug_int);
         ADDFUNC(NULL, debug_float);
+        ADDFUNC(NULL, debug_double);
         ADDFUNC(NULL, debug_statement);
         ADDFUNC(NULL, debug_statement_with_arg);
         ADDFUNC(jit->kernel32_dll, SetLastError);

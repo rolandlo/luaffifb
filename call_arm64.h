@@ -19,7 +19,7 @@
 #endif
 
 //|.actionlist build_actionlist
-static const unsigned int build_actionlist[837] = {
+static const unsigned int build_actionlist[858] = {
 0xF84002A9,
 0x000E0000,
 0x00000000,
@@ -277,18 +277,27 @@ static const unsigned int build_actionlist[837] = {
 0xAA1303E0,
 0x94000000,
 0x0003000A,
-0x00000000,
-0x52800001,
-0x00090205,
-0xAA1303E0,
+0xD10203FF,
+0xFD0003E0,
+0xFD000BE1,
+0xFD0013E2,
+0xFD001BE3,
+0xFD0023E4,
+0xFD002BE5,
+0xFD0033E6,
+0xFD003BE7,
+0x1E604000,
 0x94000000,
 0x0003000B,
-0x00000000,
-0x52800001,
-0x00090205,
-0xAA1303E0,
-0x94000000,
-0x0003000A,
+0xFD4003E0,
+0xFD400BE1,
+0xFD4013E2,
+0xFD401BE3,
+0xFD4023E4,
+0xFD402BE5,
+0xFD4033E6,
+0xFD403BE7,
+0x910203FF,
 0x00000000,
 0x52800001,
 0x00090205,
@@ -296,13 +305,12 @@ static const unsigned int build_actionlist[837] = {
 0x94000000,
 0x0003000C,
 0x00000000,
-0x910003E9,
-0x91000129,
-0x000B0000,
-0xAA0903E4,
-0x52800003,
+0x52800001,
 0x00090205,
-0xAA1403E2,
+0xAA1303E0,
+0x94000000,
+0x0003000A,
+0x00000000,
 0x52800001,
 0x00090205,
 0xAA1303E0,
@@ -325,6 +333,19 @@ static const unsigned int build_actionlist[837] = {
 0x910003E9,
 0x91000129,
 0x000B0000,
+0xAA0903E4,
+0x52800003,
+0x00090205,
+0xAA1403E2,
+0x52800001,
+0x00090205,
+0xAA1303E0,
+0x94000000,
+0x0003000F,
+0x00000000,
+0x910003E9,
+0x91000129,
+0x000B0000,
 0xAA0903E5,
 0x52800004,
 0x00090205,
@@ -335,7 +356,7 @@ static const unsigned int build_actionlist[837] = {
 0x00090205,
 0xAA1303E0,
 0x94000000,
-0x0003000F,
+0x00030010,
 0x00000000,
 0xD2800009,
 0x00090205,
@@ -349,7 +370,7 @@ static const unsigned int build_actionlist[837] = {
 0xB940012A,
 0x2A0A03E0,
 0x94000000,
-0x00030010,
+0x00030011,
 0x00000000,
 0x910083FF,
 0x00000000,
@@ -397,13 +418,13 @@ static const unsigned int build_actionlist[837] = {
 0x000B0000,
 0x00000000,
 0x94000000,
-0x00030011,
+0x00030012,
 0x8B3473FF,
 0xD100C3FF,
 0x00000000,
 0xF90013E0,
 0x94000000,
-0x00030012,
+0x00030013,
 0xD2800009,
 0x00090205,
 0xF2A00009,
@@ -429,7 +450,7 @@ static const unsigned int build_actionlist[837] = {
 0x2A0903E1,
 0xAA1303E0,
 0x94000000,
-0x00030013,
+0x00030014,
 0xF94013E9,
 0xF9000009,
 0x52800020,
@@ -445,7 +466,7 @@ static const unsigned int build_actionlist[837] = {
 0x00000000,
 0xF90013E0,
 0x94000000,
-0x00030012,
+0x00030013,
 0xD2800009,
 0x00090205,
 0xF2A00009,
@@ -471,7 +492,7 @@ static const unsigned int build_actionlist[837] = {
 0x2A0903E1,
 0xAA1303E0,
 0x94000000,
-0x00030013,
+0x00030014,
 0xF94013E9,
 0xF9000009,
 0x52800020,
@@ -487,7 +508,7 @@ static const unsigned int build_actionlist[837] = {
 0x00000000,
 0xF90013E0,
 0x94000000,
-0x00030012,
+0x00030013,
 0xD2800009,
 0x00090205,
 0xF2A00009,
@@ -501,7 +522,7 @@ static const unsigned int build_actionlist[837] = {
 0xAA0003E1,
 0xAA1303E0,
 0x94000000,
-0x00030014,
+0x00030015,
 0x52800020,
 0xA97F52B3,
 0x910002BF,
@@ -515,7 +536,7 @@ static const unsigned int build_actionlist[837] = {
 0x00000000,
 0xF90013E0,
 0x94000000,
-0x00030012,
+0x00030013,
 0xD2800009,
 0x00090205,
 0xF2A00009,
@@ -529,7 +550,7 @@ static const unsigned int build_actionlist[837] = {
 0xAA0003E1,
 0xAA1303E0,
 0x94000000,
-0x00030014,
+0x00030015,
 0x52800020,
 0xA97F52B3,
 0x910002BF,
@@ -544,7 +565,7 @@ static const unsigned int build_actionlist[837] = {
 0xBD002BE0,
 0xBD002FE1,
 0x94000000,
-0x00030012,
+0x00030013,
 0xD2800009,
 0x00090205,
 0xF2A00009,
@@ -570,7 +591,7 @@ static const unsigned int build_actionlist[837] = {
 0x2A0903E1,
 0xAA1303E0,
 0x94000000,
-0x00030013,
+0x00030014,
 0xBD402BE0,
 0xBD402FE1,
 0xBD000000,
@@ -589,7 +610,7 @@ static const unsigned int build_actionlist[837] = {
 0xFD0013E0,
 0xFD0017E1,
 0x94000000,
-0x00030012,
+0x00030013,
 0xD2800009,
 0x00090205,
 0xF2A00009,
@@ -615,7 +636,7 @@ static const unsigned int build_actionlist[837] = {
 0x2A0903E1,
 0xAA1303E0,
 0x94000000,
-0x00030013,
+0x00030014,
 0xFD4013E0,
 0xFD4017E1,
 0xFD000000,
@@ -632,7 +653,7 @@ static const unsigned int build_actionlist[837] = {
 0xD65F03C0,
 0x00000000,
 0x94000000,
-0x00030012,
+0x00030013,
 0xD2800009,
 0x00090205,
 0xF2A00009,
@@ -656,7 +677,7 @@ static const unsigned int build_actionlist[837] = {
 0xD3401C00,
 0xF90013E0,
 0x94000000,
-0x00030012,
+0x00030013,
 0xD2800009,
 0x00090205,
 0xF2A00009,
@@ -670,7 +691,7 @@ static const unsigned int build_actionlist[837] = {
 0x2A0903E1,
 0xAA1303E0,
 0x94000000,
-0x00030015,
+0x00030016,
 0x52800020,
 0xA97F52B3,
 0x910002BF,
@@ -688,7 +709,7 @@ static const unsigned int build_actionlist[837] = {
 0x00000000,
 0xF90013E0,
 0x94000000,
-0x00030012,
+0x00030013,
 0xD2800009,
 0x00090205,
 0xF2A00009,
@@ -702,7 +723,7 @@ static const unsigned int build_actionlist[837] = {
 0x2A0903E1,
 0xAA1303E0,
 0x94000000,
-0x00030016,
+0x00030017,
 0x52800020,
 0xA97F52B3,
 0x910002BF,
@@ -720,35 +741,7 @@ static const unsigned int build_actionlist[837] = {
 0x00000000,
 0xF90013E0,
 0x94000000,
-0x00030012,
-0xD2800009,
-0x00090205,
-0xF2A00009,
-0x00090205,
-0xF2C00009,
-0x00090205,
-0xF2E00009,
-0x00090205,
-0xB9000120,
-0xB94023E9,
-0x2A0903E1,
-0xAA1303E0,
-0x94000000,
-0x00030016,
-0x52800020,
-0xA97F52B3,
-0x910002BF,
-0xA9405BF5,
-0x910043FF,
-0xA94063F7,
-0x910043FF,
-0xA9407BFD,
-0x910043FF,
-0xD65F03C0,
-0x00000000,
-0xF90013E0,
-0x94000000,
-0x00030012,
+0x00030013,
 0xD2800009,
 0x00090205,
 0xF2A00009,
@@ -776,7 +769,7 @@ static const unsigned int build_actionlist[837] = {
 0x00000000,
 0xF90013E0,
 0x94000000,
-0x00030012,
+0x00030013,
 0xD2800009,
 0x00090205,
 0xF2A00009,
@@ -790,7 +783,35 @@ static const unsigned int build_actionlist[837] = {
 0x2A0903E1,
 0xAA1303E0,
 0x94000000,
-0x00030016,
+0x00030018,
+0x52800020,
+0xA97F52B3,
+0x910002BF,
+0xA9405BF5,
+0x910043FF,
+0xA94063F7,
+0x910043FF,
+0xA9407BFD,
+0x910043FF,
+0xD65F03C0,
+0x00000000,
+0xF90013E0,
+0x94000000,
+0x00030013,
+0xD2800009,
+0x00090205,
+0xF2A00009,
+0x00090205,
+0xF2C00009,
+0x00090205,
+0xF2E00009,
+0x00090205,
+0xB9000120,
+0xB94023E9,
+0x2A0903E1,
+0xAA1303E0,
+0x94000000,
+0x00030017,
 0x52800020,
 0xA97F52B3,
 0x910002BF,
@@ -805,7 +826,7 @@ static const unsigned int build_actionlist[837] = {
 0x1E22C000,
 0xFD0013E0,
 0x94000000,
-0x00030012,
+0x00030013,
 0xD2800009,
 0x00090205,
 0xF2A00009,
@@ -818,7 +839,7 @@ static const unsigned int build_actionlist[837] = {
 0xFD4013E0,
 0xAA1303E0,
 0x94000000,
-0x00030018,
+0x00030019,
 0x52800020,
 0xA97F52B3,
 0x910002BF,
@@ -832,7 +853,7 @@ static const unsigned int build_actionlist[837] = {
 0x00000000,
 0xFD0013E0,
 0x94000000,
-0x00030012,
+0x00030013,
 0xD2800009,
 0x00090205,
 0xF2A00009,
@@ -845,7 +866,7 @@ static const unsigned int build_actionlist[837] = {
 0xFD4013E0,
 0xAA1303E0,
 0x94000000,
-0x00030018,
+0x00030019,
 0x52800020,
 0xA97F52B3,
 0x910002BF,
@@ -876,6 +897,7 @@ static const char *const extnames[] = {
   "check_uint64",
   "check_int64",
   "check_double",
+  "debug_double",
   "check_complex_double",
   "check_complex_float",
   "unpack_varargs_float",
@@ -1063,7 +1085,30 @@ static const char *const extnames[] = {
 //| add sp, sp, #(16*8)
 //|.endmacro
 
-//|.macro call_fp_debug_1, one
+//|.macro call_debug_float, one
+//| sub sp, sp, #(16*8)
+//| str d0,  [sp]
+//| str d1,  [sp,#16]
+//| str d2,  [sp,#32]
+//| str d3,  [sp,#48]
+//| str d4,  [sp,#64]
+//| str d5,  [sp,#80]
+//| str d6,  [sp,#96]
+//| str d7,  [sp,#112]
+//| fmov s0, one
+//| bl extern debug_float
+//| ldr d0,  [sp]
+//| ldr d1,  [sp,#16]
+//| ldr d2,  [sp,#32]
+//| ldr d3,  [sp,#48]
+//| ldr d4,  [sp,#64]
+//| ldr d5,  [sp,#80]
+//| ldr d6,  [sp,#96]
+//| ldr d7,  [sp,#112]
+//| add sp, sp, #(16*8)
+//|.endmacro
+
+//|.macro call_debug_double, one
 //| sub sp, sp, #(16*8)
 //| str d0,  [sp]
 //| str d1,  [sp,#16]
@@ -1074,7 +1119,7 @@ static const char *const extnames[] = {
 //| str d6,  [sp,#96]
 //| str d7,  [sp,#112]
 //| fmov d0, one
-//| bl extern debug_float
+//| bl extern debug_double
 //| ldr d0,  [sp]
 //| ldr d1,  [sp,#16]
 //| ldr d2,  [sp,#32]
@@ -1732,6 +1777,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
 
             case DOUBLE_TYPE:
                 //| call_ri extern check_double, L_ARG, i
+                //| call_debug_double d0
                 dasm_put(Dst, 252, i);
                 add_float(Dst, ct, &reg, 1);
                 lua_pop(L, 1);
@@ -1743,14 +1789,14 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
                  * the returned arg is stored (this is popped by the called
                  * function) */
                 //| call_ri extern check_complex_double, L_ARG, i
-                dasm_put(Dst, 258, i);
+                dasm_put(Dst, 279, i);
                 add_complex_float(Dst, ct, &reg, 1);
                 lua_pop(L, 1);
                 break;
 
             case FLOAT_TYPE:
                 //| call_ri extern check_double, L_ARG, i
-                dasm_put(Dst, 264, i);
+                dasm_put(Dst, 285, i);
                 add_float(Dst, ct, &reg, 0);
                 lua_pop(L, 1);
                 break;
@@ -1758,7 +1804,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             case COMPLEX_FLOAT_TYPE:
                 /* complex floats are returned as s0 and s1 */
                 //| call_ri extern check_complex_float, L_ARG, i
-                dasm_put(Dst, 270, i);
+                dasm_put(Dst, 291, i);
                 add_complex_float(Dst, ct, &reg, 0);
                 lua_pop(L, 1);
                 break;
@@ -1774,20 +1820,20 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             //| mov x9, sp
             //| add x9, x9, #(32 + 8*(MAX_INT_REGISTERS(ct) + reg.floats))
             //| call_ririr extern unpack_varargs_float, L_ARG, (nargs+1), TOP, (MAX_FLOAT_REGISTERS(ct) - reg.floats), x9
-            dasm_put(Dst, 276, (32 + 8*(MAX_INT_REGISTERS(ct) + reg.floats)), (MAX_FLOAT_REGISTERS(ct) - reg.floats), (nargs+1));
+            dasm_put(Dst, 297, (32 + 8*(MAX_INT_REGISTERS(ct) + reg.floats)), (MAX_FLOAT_REGISTERS(ct) - reg.floats), (nargs+1));
         }
 
         if (reg.ints < MAX_INT_REGISTERS(ct)) {
             //| mov x9, sp
             //| add x9, x9, #(32 + 8*(reg.ints))
             //| call_ririr extern unpack_varargs_int, L_ARG, (nargs+1), TOP, (MAX_INT_REGISTERS(ct) - reg.ints), x9
-            dasm_put(Dst, 289, (32 + 8*(reg.ints)), (MAX_INT_REGISTERS(ct) - reg.ints), (nargs+1));
+            dasm_put(Dst, 310, (32 + 8*(reg.ints)), (MAX_INT_REGISTERS(ct) - reg.ints), (nargs+1));
         }
 
         //| mov x9, sp
         //| add x9, x9, #(reg.off)
         //| call_ririir extern unpack_varargs_stack_skip, L_ARG, (nargs+1), TOP, (MAX_INT_REGISTERS(ct) - reg.ints), (MAX_FLOAT_REGISTERS(ct) - reg.floats), x9
-        dasm_put(Dst, 302, (reg.off), (MAX_FLOAT_REGISTERS(ct) - reg.floats), (MAX_INT_REGISTERS(ct) - reg.ints), (nargs+1));
+        dasm_put(Dst, 323, (reg.off), (MAX_FLOAT_REGISTERS(ct) - reg.floats), (MAX_INT_REGISTERS(ct) - reg.ints), (nargs+1));
 
         reg.floats = MAX_FLOAT_REGISTERS(ct);
         reg.ints = MAX_INT_REGISTERS(ct);
@@ -1797,37 +1843,37 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
 	//| mov x10, xzr
     //| ldr w10, [x9]
     //| call_w extern SetLastError, w10
-    dasm_put(Dst, 317, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+    dasm_put(Dst, 338, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
 
     /* remove the stack space to call local functions */
     //| add sp, sp, #(32)
-    dasm_put(Dst, 331);
+    dasm_put(Dst, 352);
 
     switch (reg.floats) {
     case 8:
         //| ldr d7, [sp, #(8*(MAX_INT_REGISTERS(ct)+7))]
-        dasm_put(Dst, 333, (8*(MAX_INT_REGISTERS(ct)+7)));
+        dasm_put(Dst, 354, (8*(MAX_INT_REGISTERS(ct)+7)));
     case 7:
         //| ldr d6, [sp, #(8*(MAX_INT_REGISTERS(ct)+6))]
-        dasm_put(Dst, 336, (8*(MAX_INT_REGISTERS(ct)+6)));
+        dasm_put(Dst, 357, (8*(MAX_INT_REGISTERS(ct)+6)));
     case 6:
         //| ldr d5, [sp, #(8*(MAX_INT_REGISTERS(ct)+5))]
-        dasm_put(Dst, 339, (8*(MAX_INT_REGISTERS(ct)+5)));
+        dasm_put(Dst, 360, (8*(MAX_INT_REGISTERS(ct)+5)));
     case 5:
         //| ldr d4, [sp, #(8*(MAX_INT_REGISTERS(ct)+4))]
-        dasm_put(Dst, 342, (8*(MAX_INT_REGISTERS(ct)+4)));
+        dasm_put(Dst, 363, (8*(MAX_INT_REGISTERS(ct)+4)));
     case 4:
         //| ldr d3, [sp, #(8*(MAX_INT_REGISTERS(ct)+3))]
-        dasm_put(Dst, 345, (8*(MAX_INT_REGISTERS(ct)+3)));
+        dasm_put(Dst, 366, (8*(MAX_INT_REGISTERS(ct)+3)));
     case 3:
         //| ldr d2, [sp, #(8*(MAX_INT_REGISTERS(ct)+2))]
-        dasm_put(Dst, 348, (8*(MAX_INT_REGISTERS(ct)+2)));
+        dasm_put(Dst, 369, (8*(MAX_INT_REGISTERS(ct)+2)));
     case 2:
         //| ldr d1, [sp, #(8*(MAX_INT_REGISTERS(ct)+1))]
-        dasm_put(Dst, 351, (8*(MAX_INT_REGISTERS(ct)+1)));
+        dasm_put(Dst, 372, (8*(MAX_INT_REGISTERS(ct)+1)));
     case 1:
         //| ldr d0, [sp, #(8*(MAX_INT_REGISTERS(ct)))]
-        dasm_put(Dst, 354, (8*(MAX_INT_REGISTERS(ct))));
+        dasm_put(Dst, 375, (8*(MAX_INT_REGISTERS(ct))));
     case 0:
         break;
     }
@@ -1835,40 +1881,40 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
     switch (reg.ints) {
     case 8:
         //| ldr x7, [sp, #(8*7)]
-        dasm_put(Dst, 357);
+        dasm_put(Dst, 378);
     case 7:
         //| ldr x6, [sp, #(8*6)]
-        dasm_put(Dst, 359);
+        dasm_put(Dst, 380);
     case 6:
         //| ldr x5, [sp, #(8*5)]
-        dasm_put(Dst, 361);
+        dasm_put(Dst, 382);
     case 5:
         //| ldr x4, [sp, #(8*4)]
-        dasm_put(Dst, 363);
+        dasm_put(Dst, 384);
     case 4:
         //| ldr x3, [sp, #(8*3)]
-        dasm_put(Dst, 365);
+        dasm_put(Dst, 386);
     case 3:
         //| ldr x2, [sp, #(8*2)]
-        dasm_put(Dst, 367);
+        dasm_put(Dst, 388);
     case 2:
         //| ldr x1, [sp, #(8*1)]
-        dasm_put(Dst, 369);
+        dasm_put(Dst, 390);
     case 1:
         //| ldr x0, [sp]
-        dasm_put(Dst, 371);
+        dasm_put(Dst, 392);
     case 0:
         break;
     }
 
     //| add sp, sp, #(REGISTER_STACK_SPACE(ct))
-    dasm_put(Dst, 373, (REGISTER_STACK_SPACE(ct)));
+    dasm_put(Dst, 394, (REGISTER_STACK_SPACE(ct)));
 
     //| bl extern FUNCTION
 	//|
     //| add sp, sp, TOP, lsl #4 // Free up the stack space reserved for FUNCTION call
     //| sub sp, sp, #48 // 32 to be able to call local functions, 16 so we can store some local variables
-    dasm_put(Dst, 376);
+    dasm_put(Dst, 397);
 
     lua_rawgeti(L, ct_usr, 0); /* i = 0 is the return type */
     mbr_ct = (const struct ctype*) lua_touserdata(L, -1);
@@ -1884,7 +1930,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
         //| ldr x9, [sp, #32]
         //| str x9, [x0] // *(void**) cdata = val
         //| lua_return_arg
-        dasm_put(Dst, 381, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
+        dasm_put(Dst, 402, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
     } else {
         switch (mbr_ct->type) {
         case FUNCTION_PTR_TYPE:
@@ -1898,17 +1944,17 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             //| ldr x9, [sp, #32]
             //| str x9, [x0] // *(void**) cdata = val
             //| lua_return_arg
-            dasm_put(Dst, 423, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
+            dasm_put(Dst, 444, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
             break;
 
         case INT64_TYPE:
             lua_pop(L, 1);
             if (mbr_ct->is_unsigned) {
                 //| lua_return_ulong
-                dasm_put(Dst, 465, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+                dasm_put(Dst, 486, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             } else {
                 //| lua_return_long
-                dasm_put(Dst, 493, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+                dasm_put(Dst, 514, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             }
             break;
 
@@ -1931,7 +1977,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             //| str s1, [x0, #4]
             //|
             //| lua_return_arg
-            dasm_put(Dst, 521, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
+            dasm_put(Dst, 542, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
             break;
 
         case COMPLEX_DOUBLE_TYPE:
@@ -1953,19 +1999,19 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             //| str d1, [x0, #8]
             //|
             //| lua_return_arg
-            dasm_put(Dst, 566, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
+            dasm_put(Dst, 587, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
             break;
 
         case VOID_TYPE:
             lua_pop(L, 1);
             //| lua_return_void
-            dasm_put(Dst, 611, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+            dasm_put(Dst, 632, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             break;
 
         case BOOL_TYPE:
             lua_pop(L, 1);
             //| lua_return_bool
-            dasm_put(Dst, 633, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+            dasm_put(Dst, 654, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             break;
 
         case INT8_TYPE:
@@ -1973,14 +2019,14 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             if (mbr_ct->is_unsigned) {
                 //| // movzx eax, al
                 //| ubfm x0, x0, #0, #7
-                dasm_put(Dst, 662);
+                dasm_put(Dst, 683);
             } else {
                 //| //movsx eax, al
                 //| sbfm x0, x0, #0, #7
-                dasm_put(Dst, 664);
+                dasm_put(Dst, 685);
             }
             //| lua_return_int
-            dasm_put(Dst, 666, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+            dasm_put(Dst, 687, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             break;
 
         case INT16_TYPE:
@@ -1988,14 +2034,14 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             if (mbr_ct->is_unsigned) {
                 //| //movzx eax, ax
                 //| ubfm x0, x0, #0, #15
-                dasm_put(Dst, 694);
+                dasm_put(Dst, 715);
             } else {
                 //| //movsx eax, ax
                 //| sbfm x0, x0, #0, #15
-                dasm_put(Dst, 696);
+                dasm_put(Dst, 717);
             }
             //| lua_return_int
-            dasm_put(Dst, 698, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+            dasm_put(Dst, 719, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             break;
 
         case INT32_TYPE:
@@ -2003,10 +2049,10 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             lua_pop(L, 1);
             if (mbr_ct->is_unsigned) {
                 //| lua_return_uint
-                dasm_put(Dst, 726, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+                dasm_put(Dst, 747, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             } else {
                 //| lua_return_int
-                dasm_put(Dst, 754, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+                dasm_put(Dst, 775, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             }
             break;
 
@@ -2014,13 +2060,13 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             lua_pop(L, 1);
             //| fcvt d0, s0
             //| lua_return_double
-            dasm_put(Dst, 782, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+            dasm_put(Dst, 803, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             break;
 
         case DOUBLE_TYPE:
             lua_pop(L, 1);
             //| lua_return_double
-            dasm_put(Dst, 810, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+            dasm_put(Dst, 831, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             break;
 
         default:
