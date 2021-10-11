@@ -987,6 +987,7 @@ static void set_struct(lua_State* L, int idx, void* to, int to_usr, const struct
 
             lua_pushvalue(L, -2);
             off = get_member(L, to_usr, tt, &mt);
+			printf("%s:%d off = [%td]\n", __FILE__, __LINE__, off);
             assert(off >= 0);
             set_value(L, -2, (char*) to + off, -1, &mt, check_pointers);
 
@@ -1107,8 +1108,10 @@ static void set_value(lua_State* L, int idx, void* to, int to_usr, const struct 
         case INT8_TYPE:
             if (tt->is_unsigned) {
                 *(uint8_t*) to = (uint8_t) cast_uint64(L, idx, !check_pointers);
+			printf("%s:%d value = [%d]\n", __FILE__, __LINE__, *(uint8_t*) to);
             } else {
                 *(int8_t*) to = (int8_t) cast_int64(L, idx, !check_pointers);
+			printf("%s:%d value = [%d]\n", __FILE__, __LINE__, *(uint8_t*) to);
             }
             break;
         case INT16_TYPE:
