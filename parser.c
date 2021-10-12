@@ -492,7 +492,8 @@ static void calculate_member_position(lua_State* L, struct parser* P, struct cty
 
         if (!mt->has_member_name) {
 #ifndef ARCH_ARM64
-            /* unnamed bitfields don't update the struct alignment */
+            /* unnamed bitfields don't update the struct alignment in X86-64
+             * however it seem to have an effect in ARMv8 */
             mt->align_mask = 0;
 #endif
         }
