@@ -342,7 +342,6 @@ local i64 = ffi.typeof('int64_t')
 
 local first = true
 
-print(debug.getinfo(1).source, debug.getinfo(1).currentline);
 for convention,c in pairs(dlls) do
     check(c.add_i8(1,1), 2)
     check(c.add_i8(256,1), 1)

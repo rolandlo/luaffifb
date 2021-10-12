@@ -242,7 +242,7 @@ void dasm_debug_put(Dst_DECL, int start, ...)
       ofs += 4;
     } else {
       int *pl, n = action >= DASM_REL_PC ? va_arg(ap, int) : 0;
-  printf("%s:%d pos = [%d] n = [%0X] D->status = [%d] [%d]\n", __FILE__, __LINE__, pos, n, D->status, start);
+  printf("%s:%d action = [%u] pos = [%d] n = [%0X] D->status = [%d] [%d]\n", __FILE__, __LINE__, action, pos, n, D->status, start);
       switch (action) {
       case DASM_STOP: goto stop;
       case DASM_SECTION:
@@ -319,6 +319,7 @@ void dasm_debug_put(Dst_DECL, int start, ...)
 	break;
       case DASM_IMM13X: {
 	int m = va_arg(ap, int);
+  printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
 	CK(dasm_imm13(n, m) != -1, RANGE_I);
   printf("%s:%d D->status = [%d] [%d]\n", __FILE__, __LINE__, D->status, start);
 	b[pos++] = n;

@@ -79,6 +79,13 @@
 | mov x0, arg0
 | bl func
 |.endmacro
+|.macro call_rwwp, func, arg0, arg1, arg2, arg3
+| mov64 x3, (arg3)
+| mov w2, arg2
+| mov w1, arg1
+| mov x0, arg0
+| bl func
+|.endmacro
 |.macro call_riip, func, arg0, arg1, arg2, arg3
 | mov64 x3, (arg3)
 | mov x2, #(arg2)
@@ -121,6 +128,12 @@
 |.endmacro
 |.macro call_rww, func, arg0, arg1, arg2
 | mov w2, arg2
+| mov w1, arg1
+| mov x0, arg0
+| bl func
+|.endmacro
+|.macro call_rwi, func, arg0, arg1, arg2
+| mov x2, #(arg2)
 | mov w1, arg1
 | mov x0, arg0
 | bl func
@@ -781,14 +794,15 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
 
     /* get the upval table */
 	| mov32 w9, LUA_REGISTRYINDEX
-	| mov32 w10, reg
+	| mov32 w10, ref
     | call_rww extern lua_rawgeti, L_ARG, w9, w10
 
     /* get the lua function */
     lua_pushvalue(L, fidx);
     lua_rawseti(L, -2, ++num_upvals);
     assert(num_upvals == CALLBACK_FUNC_USR_IDX);
-    | call_rii extern lua_rawgeti, L_ARG, -1, num_upvals
+    | mov32 w9, -1
+    | call_rwi extern lua_rawgeti, L_ARG, w9, num_upvals
 
     (void) hidden_arg_off;
 
@@ -803,11 +817,14 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             /* on the lua stack in the callback:
              * upval tbl, lua func, i-1 args
              */
-            | call_rii extern lua_rawgeti, L_ARG, -i-1, num_upvals-1
-            | call_rip extern push_cdata, L_ARG, -1, mt
+            | mov32 w9, -i-1
+            | call_rwi extern lua_rawgeti, L_ARG, w9, num_upvals-1
+            | mov32 w9, -1
+            | call_rwp extern push_cdata, L_ARG, w9, mt
             get_pointer(Dst, ct, &reg);
             | str x9, [x0]
-            | call_ri, extern lua_remove, L_ARG, -2
+            | mov32 w9, -2
+            | call_rw, extern lua_remove, L_ARG, w9
         } else {
             switch (mt->type) {
             case INT64_TYPE:
@@ -924,10 +941,14 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
         lua_getuservalue(L, -1);
         lua_rawseti(L, -3, ++num_upvals); /* usr value */
         lua_rawseti(L, -2, ++num_upvals); /* mt */
-        | call_rii extern lua_rawgeti, L_ARG, -2, num_upvals-1
-        | call_riip extern check_typed_pointer, L_ARG, -2, -1, mt
+        | mov32 w9, -2
+        | call_rwi extern lua_rawgeti, L_ARG, w9, num_upvals-1
+        | mov32 w9, -2
+        | mov32 w10, -1
+        | call_rwwp extern check_typed_pointer, L_ARG, w9, w10, mt
 		| str x0, [sp, #32]
-        | call_ri extern lua_settop, L_ARG, -4
+        | mov32 w9, -4
+        | call_rw extern lua_settop, L_ARG, w9
         | ldr x0, [sp, #32]
 
     } else {
@@ -936,16 +957,21 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             lua_getuservalue(L, -1);
             lua_rawseti(L, -3, ++num_upvals); /* usr value */
             lua_rawseti(L, -2, ++num_upvals); /* mt */
-            | call_rii extern lua_rawgeti, L_ARG, -2, num_upvals-1
-            | call_riip, extern check_enum, L_ARG, -2, -1, mt
+            | mov32 w9, -2
+            | call_rwi extern lua_rawgeti, L_ARG, w9, num_upvals-1
+            | mov32 w9, -2
+            | mov32 w10, -1
+            | call_rwwp, extern check_enum, L_ARG, w9, w10, mt
 			| str w0, [sp, #32]
-            | call_ri extern lua_settop, L_ARG, -4
+            | mov32 w9, -4
+            | call_rw extern lua_settop, L_ARG, w9
 			| ldr w0, [sp, #32]
             break;
 
         case VOID_TYPE:
             lua_pop(L, 1);
-            | call_ri extern lua_settop, L_ARG, -2
+            | mov32 w9, -2
+            | call_rw extern lua_settop, L_ARG, w9
             break;
 
         case BOOL_TYPE:
@@ -954,12 +980,15 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
         case INT32_TYPE:
             lua_pop(L, 1);
             if (mt->is_unsigned) {
-                | call_ri extern check_uint32, L_ARG, -1
+                | mov32 w9, -1
+                | call_rw extern check_uint32, L_ARG, w9
             } else {
-                | call_ri extern check_int32, L_ARG, -1
+                | mov32 w9, -1
+                | call_rw extern check_int32, L_ARG, w9
             }
 			| str w0, [sp, #32]
-            | call_ri extern lua_settop, L_ARG, -3
+            | mov32 w9, -3
+            | call_rw extern lua_settop, L_ARG, w9
 			| ldr w0, [sp, #32]
             break;
 
@@ -967,38 +996,47 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             lua_pop(L, 1);
 
             if (mt->is_unsigned) {
-                | call_ri extern check_uint64, L_ARG, -1
+                | mov32 w9, -1
+                | call_rw extern check_uint64, L_ARG, w9
             } else {
-                | call_ri extern check_int64, L_ARG, -1
+                | mov32 w9, -1
+                | call_rw extern check_int64, L_ARG, w9
             }
 
 			| str x0, [sp, #32]
-			| call_ri extern lua_settop, L_ARG, -4
+            | mov32 w9, -4
+			| call_rw extern lua_settop, L_ARG, w9
 			| ldr x0, [sp, #32]
             break;
 
         case INTPTR_TYPE:
             lua_pop(L, 1);
-            | call_ri extern check_uintptr, L_ARG, -1
+            | mov32 w9, -1
+            | call_rw extern check_uintptr, L_ARG, w9
 			| str x0, [sp, #32]
-            | call_ri extern lua_settop, L_ARG, -3
+            | mov32 w9, -3
+            | call_rw extern lua_settop, L_ARG, w9
 			| ldr x0, [sp, #32]
             break;
 
         case FLOAT_TYPE:
             lua_pop(L, 1);
-            | call_ri extern check_double, L_ARG, -1
+            | mov32 w9, -1
+            | call_rw extern check_double, L_ARG, w9
 			| str d0, [sp, #32]
-            | call_ri extern lua_settop, L_ARG, -3
+            | mov32 w9, -3
+            | call_rw extern lua_settop, L_ARG, w9
 			| ldr d1, [sp, #32]
 			| fcvt s0, d1
             break;
 
         case DOUBLE_TYPE:
             lua_pop(L, 1);
-            | call_ri extern check_double, L_ARG, -1
+            | mov32 w9, -1
+            | call_rw extern check_double, L_ARG, w9
 			| str d0, [sp, #32]
-            | call_ri extern lua_settop, L_ARG, -3
+            | mov32 w9, -3
+            | call_rw extern lua_settop, L_ARG, w9
             | ldr d0, [sp, #32]
             break;
 
@@ -1007,12 +1045,14 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
 #if !defined HAVE_COMPLEX
             luaL_error(L, "ffi lib compiled without complex number support");
 #endif
-            | call_ri extern check_complex_float, L_ARG, -1
+            | mov32 w9, -1
+            | call_rw extern check_complex_float, L_ARG, w9
             |
 			| str s0, [sp,#32]
 			| str s1, [sp,#36]
             |
-            | call_ri extern lua_settop, L_ARG, -3
+            | mov32 w9, -3
+            | call_rw extern lua_settop, L_ARG, w9
             |
 			| ldr s0, [sp,#32]
 			| ldr s1, [sp,#36]
@@ -1024,12 +1064,14 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
 #if !defined HAVE_COMPLEX
             luaL_error(L, "ffi lib compiled without complex number support");
 #endif
-            | call_ri extern check_complex_double, L_ARG, -1
+            | mov32 w9, -1
+            | call_rw extern check_complex_double, L_ARG, w9
             |
 			| str d0, [sp,#32]
 			| str d1, [sp,#40]
             |
-            | call_ri extern lua_settop, L_ARG, -3
+            | mov32 w9, -3
+            | call_rw extern lua_settop, L_ARG, w9
             |
 			| ldr d0, [sp,#32]
 			| ldr d1, [sp,#40]
@@ -1215,7 +1257,6 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
 
             case DOUBLE_TYPE:
                 | call_ri extern check_double, L_ARG, i
-                | call_debug_double d0
                 add_float(Dst, ct, &reg, 1);
                 lua_pop(L, 1);
                 break;

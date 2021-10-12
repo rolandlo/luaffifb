@@ -70,6 +70,67 @@ static char tok1[] = {
     '>', '^', '|', '?', '#'
 };
 
+static const char* etype_tostring(int type);
+static const char* etype_tostring(int type)
+{
+    switch (type) {
+    case VOID_TYPE: return "void";
+    case DOUBLE_TYPE: return "double";
+    case FLOAT_TYPE: return "float";
+    case COMPLEX_DOUBLE_TYPE: return "complex double";
+    case COMPLEX_FLOAT_TYPE: return "complex float";
+    case BOOL_TYPE: return "bool";
+    case INT8_TYPE: return "int8";
+    case INT16_TYPE: return "int16";
+    case INT32_TYPE: return "int32";
+    case INT64_TYPE: return "int64";
+    case INTPTR_TYPE: return "intptr";
+    case ENUM_TYPE: return "enum";
+    case UNION_TYPE: return "union";
+    case STRUCT_TYPE: return "struct";
+    case FUNCTION_PTR_TYPE: return "function ptr";
+    case FUNCTION_TYPE: return "function";
+    default: return "invalid";
+    }
+}
+
+static void debug_print_type(const struct ctype* ct)
+{
+    printf(" sz %zu %zu %zu align %d ptr %d %d %d type %s%s %d %d %d name %d call %d %d var %d %d %d bit %d %d %d %d jit %d\n",
+            /* sz */
+            ct->base_size,
+            ct->array_size,
+            ct->offset,
+            /* align */
+            ct->align_mask,
+            /* ptr */
+            ct->is_array,
+            ct->pointers,
+            ct->const_mask,
+            /* type */
+            ct->is_unsigned ? "u" : "",
+            etype_tostring(ct->type),
+            ct->is_reference,
+            ct->is_defined,
+            ct->is_null,
+            /* name */
+            ct->has_member_name,
+            /* call */
+            ct->calling_convention,
+            ct->has_var_arg,
+            /* var */
+            ct->is_variable_array,
+            ct->is_variable_struct,
+            ct->variable_size_known,
+            /* bit */
+            ct->is_bitfield,
+            ct->has_bitfield,
+            ct->bit_offset,
+            ct->bit_size,
+            /* jit */
+            ct->is_jitted);
+}
+
 static int next_token(lua_State* L, struct parser* P, struct token* tok)
 {
     size_t i;
@@ -429,9 +490,11 @@ static void calculate_member_position(lua_State* L, struct parser* P, struct cty
         ct->base_size += bit_offset / CHAR_BIT;
         bit_offset = bit_offset % CHAR_BIT;
 
-        /* unnamed bitfields don't update the struct alignment */
         if (!mt->has_member_name) {
+#ifndef ARCH_ARM64
+            /* unnamed bitfields don't update the struct alignment */
             mt->align_mask = 0;
+#endif
         }
 #else
 #error
@@ -651,6 +714,7 @@ static int calculate_struct_offsets(lua_State* L, struct parser* P, int ct_usr, 
         /* get the member type */
         lua_rawgeti(L, tmp_usr, i);
         mt = *(const struct ctype*) lua_touserdata(L, -1);
+        //debug_print_type(&mt);
 
         /* get the member user table */
         lua_getuservalue(L, -1);
@@ -676,6 +740,7 @@ static int calculate_struct_offsets(lua_State* L, struct parser* P, int ct_usr, 
             /* We ignore unnamed members that aren't structs or unions. These
              * are there just to change the padding */
         }
+        //debug_print_type(&mt);
 
         lua_pop(L, 3);
     }
@@ -831,7 +896,9 @@ static int parse_record(lua_State* L, struct parser* P, struct ctype* ct)
          */
         lua_newtable(L);
         parse_struct(L, P, -1, ct);
+        //debug_print_type(ct);
         calculate_struct_offsets(L, P, -2, ct, -1);
+        //debug_print_type(ct);
         assert(lua_gettop(L) == top + 2 && lua_istable(L, -1));
         lua_pop(L, 1);
     }
@@ -1122,7 +1189,7 @@ static int parse_attribute(lua_State* L, struct parser* P, struct token* tok, st
                         ct->align_mask = ALIGNOF(a32);
 
                     } else if (IS_LITERAL(*tok, "DI") || IS_LITERAL(*tok, "__DI__")
-#if defined ARCH_X64 || defined ARCH_PPC64
+#if defined ARCH_X64 || defined ARCH_PPC64 || defined ARCH_ARM64
                             || IS_LITERAL(*tok, "word") || IS_LITERAL(*tok, "__word__")
                             || IS_LITERAL(*tok, "pointer") || IS_LITERAL(*tok, "__pointer__")
 #endif
@@ -1216,6 +1283,7 @@ int parse_type(lua_State* L, struct parser* P, struct ctype* ct)
 
     } else if (IS_LITERAL(tok, "struct")) {
         ct->type = STRUCT_TYPE;
+        //printf("%s:%d\n", __FILE__, __LINE__);
         parse_record(L, P, ct);
 
     } else if (IS_LITERAL(tok, "union")) {
@@ -2122,6 +2190,7 @@ static int parse_root(lua_State* L, struct parser* P)
             memset(&asmname, 0, sizeof(asmname));
 
             put_back(P);
+            //printf("%s:%d\n", __FILE__, __LINE__);
             parse_type(L, P, &type);
 
             for (;;) {

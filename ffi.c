@@ -10,6 +10,13 @@
 #include <math.h>
 #include <inttypes.h>
 
+#include <execinfo.h>
+#define STACK_TRACE() {\
+    void* callstack[128+1]; \
+    int i, frames = backtrace(callstack, 128); \
+    backtrace_symbols_fd(callstack, frames, STDERR_FILENO); \
+}
+
 /* Set to 1 to get extra debugging on print */
 #define DEBUG_TOSTRING 0
 
@@ -27,6 +34,44 @@ int abi_key;
 int next_unnamed_key;
 int niluv_key;
 int asmname_key;
+
+static const char* etype_tostring(int type);
+static void debug_print_type(const struct ctype* ct)
+{
+    printf(" sz %zu %zu %zu align %d ptr %d %d %d type %s%s %d %d %d name %d call %d %d var %d %d %d bit %d %d %d %d jit %d\n",
+            /* sz */
+            ct->base_size,
+            ct->array_size,
+            ct->offset,
+            /* align */
+            ct->align_mask,
+            /* ptr */
+            ct->is_array,
+            ct->pointers,
+            ct->const_mask,
+            /* type */
+            ct->is_unsigned ? "u" : "",
+            etype_tostring(ct->type),
+            ct->is_reference,
+            ct->is_defined,
+            ct->is_null,
+            /* name */
+            ct->has_member_name,
+            /* call */
+            ct->calling_convention,
+            ct->has_var_arg,
+            /* var */
+            ct->is_variable_array,
+            ct->is_variable_struct,
+            ct->variable_size_known,
+            /* bit */
+            ct->is_bitfield,
+            ct->has_bitfield,
+            ct->bit_offset,
+            ct->bit_size,
+            /* jit */
+            ct->is_jitted);
+}
 
 void push_upval(lua_State* L, int* key)
 {
@@ -987,7 +1032,6 @@ static void set_struct(lua_State* L, int idx, void* to, int to_usr, const struct
 
             lua_pushvalue(L, -2);
             off = get_member(L, to_usr, tt, &mt);
-			printf("%s:%d off = [%td]\n", __FILE__, __LINE__, off);
             assert(off >= 0);
             set_value(L, -2, (char*) to + off, -1, &mt, check_pointers);
 
@@ -1006,6 +1050,7 @@ static void set_struct(lua_State* L, int idx, void* to, int to_usr, const struct
                 lua_pushinteger(L, i);
                 off = get_member(L, to_usr, tt, &mt);
                 assert(off >= 0);
+                printf("%s:%d off = [%td]\n", __FILE__, __LINE__, off);
                 set_value(L, -2, (char*) to + off, -1, &mt, check_pointers);
                 lua_pop(L, 1); /* mt usr */
             }
@@ -1108,10 +1153,8 @@ static void set_value(lua_State* L, int idx, void* to, int to_usr, const struct 
         case INT8_TYPE:
             if (tt->is_unsigned) {
                 *(uint8_t*) to = (uint8_t) cast_uint64(L, idx, !check_pointers);
-			printf("%s:%d value = [%d]\n", __FILE__, __LINE__, *(uint8_t*) to);
             } else {
                 *(int8_t*) to = (int8_t) cast_int64(L, idx, !check_pointers);
-			printf("%s:%d value = [%d]\n", __FILE__, __LINE__, *(uint8_t*) to);
             }
             break;
         case INT16_TYPE:
@@ -1246,7 +1289,7 @@ static int should_pack(lua_State *L, int ct_usr, struct ctype* ct, int idx)
 
 static int do_new(lua_State* L, int is_cast)
 {
-    int cargs, i;
+    int cargs=0, i;
     void* p;
     struct ctype ct;
     int check_ptrs = !is_cast;
@@ -1376,6 +1419,7 @@ static int ffi_alignof(lua_State* L)
     struct ctype ct, mt;
     lua_settop(L, 2);
     check_ctype(L, 1, &ct);
+    //debug_print_type(&ct);
 
     /* if no member is specified then we return the alignment of the type */
     if (lua_isnil(L, 2)) {
@@ -1589,7 +1633,7 @@ static int cdata_call(lua_State* L)
 
     if (!lua_isfunction(L, -1)) {
         lua_pop(L, 1);
-		printf("%s:%d Calling compilation here in cdata_call\n", __FILE__, __LINE__);
+		//printf("%s:%d Calling compilation here in cdata_call\n", __FILE__, __LINE__);
         compile_function(L, *p, -1, &ct);
 
         assert(lua_gettop(L) == top + 2); /* uv, closure */
@@ -3483,6 +3527,7 @@ static int setup_upvals(lua_State* L)
         } else {
             struct {char ch; va_list v;} av;
             lua_pushfstring(L, "struct {char data[%d] __attribute__((align(%d)));}", (int) sizeof(va_list), (int) ALIGNOF(av) + 1);
+            //printf("%s:%d\n", __FILE__, __LINE__);
             add_typedef(L, lua_tostring(L, -1), "va_list");
             lua_pop(L, 1);
         }

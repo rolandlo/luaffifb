@@ -28,7 +28,7 @@ build = {
             "call.c", "ctype.c", "ffi.c", "parser.c",
          }
       },
-      ['ffi_libtest.libtest'] = 'test.c',
+      ['ffi_test.libtest'] = 'test.c',
       ['ffi_test.test'] = 'test.lua',
 	  bit = "bit.lua",
    }

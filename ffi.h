@@ -182,7 +182,8 @@ static void (lua_remove)(lua_State *L, int idx) {
 #   define EnableWrite(data, size) mprotect(data, size, PROT_READ|PROT_WRITE)
 #endif
 
-#if defined ARCH_X86 || defined ARCH_X64
+//#if defined ARCH_X86 || defined ARCH_X64
+#if defined ARCH_X86 || defined ARCH_X64 || defined ARCH_ARM64
 #define ALLOW_MISALIGNED_ACCESS
 #endif
 
