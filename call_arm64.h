@@ -2204,6 +2204,15 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
 	//| stp L_ARG, TOP, [sp]
     //| //                      -64     -56  -48  -40          -32          -24          -16  -8
     //| // stack is -64 (mod 16) (L_ARG, TOP, rbp, EXTRA_REG_1, EXTRA_REG_2, EXTRA_REG_3, x29, x30)
+	//| // L_ARG          -> -64
+	//| // TOP            -> -56
+	//| // rbp            -> -48
+	//| // EXTRA_REG_1    -> -40
+	//| // EXTRA_REG_2    -> -32
+	//| // EXTRA_REG_3    -> -24
+	//| // x29            -> -16
+	//| // x30            -> -8
+	//| //
 	//| add rbp, sp, #16
     //|
     dasm_put(Dst, 88);
@@ -2600,6 +2609,14 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
 	//| stp L_ARG, TOP, [sp]
     //| //                      -64     -56  -48  -40          -32          -24          -16  -8
     //| // stack is -64 (mod 16) (L_ARG, TOP, rbp, EXTRA_REG_1, EXTRA_REG_2, EXTRA_REG_3, x29, x30)
+	//| // L_ARG          -> -64
+	//| // TOP            -> -56
+	//| // rbp            -> -48
+	//| // EXTRA_REG_1    -> -40
+	//| // EXTRA_REG_2    -> -32
+	//| // EXTRA_REG_3    -> -24
+	//| // x29            -> -16
+	//| // x30            -> -8
 	//| add rbp, sp, #16
     //|
     //| // Get L from our arguments and allocate some stack for lua_gettop
