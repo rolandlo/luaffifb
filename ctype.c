@@ -151,7 +151,8 @@ void* push_cdata(lua_State* L, int ct_usr, const struct ctype* ct)
     }
 
     cd = (struct cdata*) lua_newuserdata(L, sizeof(struct cdata) + sz);
-    *(struct ctype*) &cd->type = *ct;
+    //*(struct ctype*) &cd->type = *ct;
+    memcpy((struct ctype*) &(cd->type), ct, sizeof(struct ctype));
     memset(cd+1, 0, sz);
 
     /* TODO: handle cases where lua_newuserdata returns a pointer that is not
@@ -245,7 +246,7 @@ void* to_cdata(lua_State* L, int idx, struct ctype* ct)
 
     lua_pop(L, 1); /* mt */
     cd = (struct cdata*) lua_touserdata(L, idx);
-    *ct = cd->type;
+    memcpy(ct, &(cd->type), sizeof(struct ctype));
     lua_getuservalue(L, idx);
 
     if (ct->is_reference) {
