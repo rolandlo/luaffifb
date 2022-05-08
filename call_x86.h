@@ -1,7 +1,7 @@
 /*
 ** This file has been pre-processed with DynASM.
 ** https://luajit.org/dynasm.html
-** DynASM version 1.5.0, DynASM x86 version 1.5.0
+** DynASM version 1.5.0, DynASM x86 version 1.4.0
 ** DO NOT EDIT! The original file is in "call_x86.dasc".
 */
 

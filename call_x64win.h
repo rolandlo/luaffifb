@@ -1,7 +1,7 @@
 /*
 ** This file has been pre-processed with DynASM.
 ** https://luajit.org/dynasm.html
-** DynASM version 1.5.0, DynASM x64 version 1.5.0
+** DynASM version 1.5.0, DynASM x64 version 1.4.0
 ** DO NOT EDIT! The original file is in "call_x86.dasc".
 */
 
@@ -531,7 +531,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
     }
 
     // hardcode the lua_State* value into the assembly
-    dasm_put(Dst, 129, (unsigned int)(L), (unsigned int)((L)>>32));
+    dasm_put(Dst, 129, (unsigned int)((uintptr_t)(L)), (unsigned int)(((uintptr_t)(L))>>32));
 
     /* get the upval table */
     dasm_put(Dst, 134, ref, LUA_REGISTRYINDEX);
@@ -565,7 +565,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             /* on the lua stack in the callback:
              * upval tbl, lua func, i-1 args
              */
-            dasm_put(Dst, 173, num_upvals-1, -i-1, (unsigned int)(mt), (unsigned int)((mt)>>32));
+            dasm_put(Dst, 173, num_upvals-1, -i-1, (unsigned int)((uintptr_t)(mt)), (unsigned int)(((uintptr_t)(mt))>>32));
             get_pointer(Dst, ct, &reg);
             dasm_put(Dst, 211);
         } else {
@@ -574,7 +574,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
                 lua_getuservalue(L, -1);
                 lua_rawseti(L, -3, ++num_upvals); /* mt */
                 lua_pop(L, 1);
-                dasm_put(Dst, 233, (unsigned int)(mt), (unsigned int)((mt)>>32));
+                dasm_put(Dst, 233, (unsigned int)((uintptr_t)(mt)), (unsigned int)(((uintptr_t)(mt))>>32));
                 get_int(Dst, ct, &reg, 1);
                 dasm_put(Dst, 252);
                 break;
@@ -583,7 +583,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
                 lua_getuservalue(L, -1);
                 lua_rawseti(L, -3, ++num_upvals); /* mt */
                 lua_pop(L, 1);
-                dasm_put(Dst, 233, (unsigned int)(mt), (unsigned int)((mt)>>32));
+                dasm_put(Dst, 233, (unsigned int)((uintptr_t)(mt)), (unsigned int)(((uintptr_t)(mt))>>32));
                 get_pointer(Dst, ct, &reg);
                 dasm_put(Dst, 252);
                 break;
@@ -592,12 +592,12 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
                 lua_pop(L, 1);
 #if defined _WIN64 || defined __amd64__
                 /* complex floats are two floats packed into a double */
-                dasm_put(Dst, 233, (unsigned int)(mt), (unsigned int)((mt)>>32));
+                dasm_put(Dst, 233, (unsigned int)((uintptr_t)(mt)), (unsigned int)(((uintptr_t)(mt))>>32));
                 get_float(Dst, ct, &reg, 1);
                 dasm_put(Dst, 256);
 #else
                 /* complex floats are real followed by imag on the stack */
-                dasm_put(Dst, 233, (unsigned int)(mt), (unsigned int)((mt)>>32));
+                dasm_put(Dst, 233, (unsigned int)((uintptr_t)(mt)), (unsigned int)(((uintptr_t)(mt))>>32));
                 get_float(Dst, ct, &reg, 0);
                 dasm_put(Dst, 261);
                 get_float(Dst, ct, &reg, 0);
@@ -607,7 +607,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
 
             case COMPLEX_DOUBLE_TYPE:
                 lua_pop(L, 1);
-                dasm_put(Dst, 233, (unsigned int)(mt), (unsigned int)((mt)>>32));
+                dasm_put(Dst, 233, (unsigned int)((uintptr_t)(mt)), (unsigned int)(((uintptr_t)(mt))>>32));
                 /* real */
                 get_float(Dst, ct, &reg, 1);
                 dasm_put(Dst, 256);
@@ -671,7 +671,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
     lua_rawgeti(L, ct_usr, 0);
     mt = (const struct ctype*) lua_touserdata(L, -1);
 
-    dasm_put(Dst, 339, (unsigned int)(0), (unsigned int)((0)>>32), (mt->pointers || mt->is_reference || mt->type != VOID_TYPE) ? 1 : 0, nargs);
+    dasm_put(Dst, 339, (unsigned int)((uintptr_t)(0)), (unsigned int)(((uintptr_t)(0))>>32), (mt->pointers || mt->is_reference || mt->type != VOID_TYPE) ? 1 : 0, nargs);
 
     // Unpack the return argument if not "void", also clean-up the lua stack
     // to remove the return argument and bind table. Use lua_settop rather
@@ -680,7 +680,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
         lua_getuservalue(L, -1);
         lua_rawseti(L, -3, ++num_upvals); /* usr value */
         lua_rawseti(L, -2, ++num_upvals); /* mt */
-        dasm_put(Dst, 359, num_upvals-1, (unsigned int)(mt), (unsigned int)((mt)>>32));
+        dasm_put(Dst, 359, num_upvals-1, (unsigned int)((uintptr_t)(mt)), (unsigned int)(((uintptr_t)(mt))>>32));
 
     } else {
         switch (mt->type) {
@@ -688,7 +688,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             lua_getuservalue(L, -1);
             lua_rawseti(L, -3, ++num_upvals); /* usr value */
             lua_rawseti(L, -2, ++num_upvals); /* mt */
-            dasm_put(Dst, 443, num_upvals-1, (unsigned int)(mt), (unsigned int)((mt)>>32));
+            dasm_put(Dst, 443, num_upvals-1, (unsigned int)((uintptr_t)(mt)), (unsigned int)(((uintptr_t)(mt))>>32));
             break;
 
         case VOID_TYPE:
@@ -812,9 +812,9 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
 
     dasm_put(Dst, 957, nargs);
     if (!ct->has_var_arg) {
-        dasm_put(Dst, 989, (unsigned int)(&"too few arguments"), (unsigned int)((&"too few arguments")>>32), (unsigned int)(&"too many arguments"), (unsigned int)((&"too many arguments")>>32));
+        dasm_put(Dst, 989, (unsigned int)((uintptr_t)(&"too few arguments")), (unsigned int)(((uintptr_t)(&"too few arguments"))>>32), (unsigned int)((uintptr_t)(&"too many arguments")), (unsigned int)(((uintptr_t)(&"too many arguments"))>>32));
     } else {
-        dasm_put(Dst, 1030, (unsigned int)(&"too few arguments"), (unsigned int)((&"too few arguments")>>32));
+        dasm_put(Dst, 1030, (unsigned int)((uintptr_t)(&"too few arguments")), (unsigned int)(((uintptr_t)(&"too few arguments"))>>32));
     }
 
     dasm_put(Dst, 1050);
@@ -832,7 +832,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
         /* we can allocate more space for arguments as long as no add_*
          * function has been called yet, mbr_ct will be added as an upvalue in
          * the return processing later */
-        dasm_put(Dst, 1066, (unsigned int)(mbr_ct), (unsigned int)((mbr_ct)>>32));
+        dasm_put(Dst, 1066, (unsigned int)((uintptr_t)(mbr_ct)), (unsigned int)(((uintptr_t)(mbr_ct))>>32));
         add_pointer(Dst, ct, &reg);
     }
     lua_pop(L, 1);
@@ -845,21 +845,21 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
         if (mbr_ct->pointers || mbr_ct->is_reference) {
             lua_getuservalue(L, -1);
             num_upvals += 2;
-            dasm_put(Dst, 1090, (unsigned int)(mbr_ct), (unsigned int)((mbr_ct)>>32), lua_upvalueindex(num_upvals), i);
+            dasm_put(Dst, 1090, (unsigned int)((uintptr_t)(mbr_ct)), (unsigned int)(((uintptr_t)(mbr_ct))>>32), lua_upvalueindex(num_upvals), i);
             add_pointer(Dst, ct, &reg);
         } else {
             switch (mbr_ct->type) {
             case FUNCTION_PTR_TYPE:
                 lua_getuservalue(L, -1);
                 num_upvals += 2;
-                dasm_put(Dst, 1110, (unsigned int)(mbr_ct), (unsigned int)((mbr_ct)>>32), lua_upvalueindex(num_upvals), i);
+                dasm_put(Dst, 1110, (unsigned int)((uintptr_t)(mbr_ct)), (unsigned int)(((uintptr_t)(mbr_ct))>>32), lua_upvalueindex(num_upvals), i);
                 add_pointer(Dst, ct, &reg);
                 break;
 
             case ENUM_TYPE:
                 lua_getuservalue(L, -1);
                 num_upvals += 2;
-                dasm_put(Dst, 1130, (unsigned int)(mbr_ct), (unsigned int)((mbr_ct)>>32), lua_upvalueindex(num_upvals), i);
+                dasm_put(Dst, 1130, (unsigned int)((uintptr_t)(mbr_ct)), (unsigned int)(((uintptr_t)(mbr_ct))>>32), lua_upvalueindex(num_upvals), i);
                 add_int(Dst, ct, &reg, 0);
                 break;
 
@@ -994,7 +994,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
 #endif
     }
 
-    dasm_put(Dst, 1457, (unsigned int)(perr), (unsigned int)((perr)>>32));
+    dasm_put(Dst, 1457, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32));
 
     /* remove the stack space to call local functions */
     dasm_put(Dst, 1471);
@@ -1094,50 +1094,50 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
     if (mbr_ct->pointers || mbr_ct->is_reference || mbr_ct->type == INTPTR_TYPE) {
         lua_getuservalue(L, -1);
         num_upvals += 2;
-        dasm_put(Dst, 1546, (unsigned int)(perr), (unsigned int)((perr)>>32), (unsigned int)(mbr_ct), (unsigned int)((mbr_ct)>>32), lua_upvalueindex(num_upvals));
+        dasm_put(Dst, 1546, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32), (unsigned int)((uintptr_t)(mbr_ct)), (unsigned int)(((uintptr_t)(mbr_ct))>>32), lua_upvalueindex(num_upvals));
 
     } else {
         switch (mbr_ct->type) {
         case FUNCTION_PTR_TYPE:
             lua_getuservalue(L, -1);
             num_upvals += 2;
-            dasm_put(Dst, 1546, (unsigned int)(perr), (unsigned int)((perr)>>32), (unsigned int)(mbr_ct), (unsigned int)((mbr_ct)>>32), lua_upvalueindex(num_upvals));
+            dasm_put(Dst, 1546, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32), (unsigned int)((uintptr_t)(mbr_ct)), (unsigned int)(((uintptr_t)(mbr_ct))>>32), lua_upvalueindex(num_upvals));
             break;
 
         case INT64_TYPE:
 #if LUA_VERSION_NUM == 503
             lua_pop(L, 1);
             if (mbr_ct->is_unsigned) {
-                dasm_put(Dst, 1606, (unsigned int)(perr), (unsigned int)((perr)>>32));
+                dasm_put(Dst, 1606, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32));
             } else {
-                dasm_put(Dst, 1606, (unsigned int)(perr), (unsigned int)((perr)>>32));
+                dasm_put(Dst, 1606, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32));
             }
 #else
             num_upvals++;
-            dasm_put(Dst, 1658, (unsigned int)(perr), (unsigned int)((perr)>>32), (unsigned int)(mbr_ct), (unsigned int)((mbr_ct)>>32));
+            dasm_put(Dst, 1658, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32), (unsigned int)((uintptr_t)(mbr_ct)), (unsigned int)(((uintptr_t)(mbr_ct))>>32));
 #endif
             break;
 
         case COMPLEX_FLOAT_TYPE:
             lua_getuservalue(L, -1);
             num_upvals += 2;
-            dasm_put(Dst, 1721, (unsigned int)(perr), (unsigned int)((perr)>>32), (unsigned int)(mbr_ct), (unsigned int)((mbr_ct)>>32), lua_upvalueindex(num_upvals));
+            dasm_put(Dst, 1721, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32), (unsigned int)((uintptr_t)(mbr_ct)), (unsigned int)(((uintptr_t)(mbr_ct))>>32), lua_upvalueindex(num_upvals));
             break;
 
         case COMPLEX_DOUBLE_TYPE:
             lua_getuservalue(L, -1);
             num_upvals += 2;
-            dasm_put(Dst, 1782, (unsigned int)(perr), (unsigned int)((perr)>>32), (unsigned int)(mbr_ct), (unsigned int)((mbr_ct)>>32), lua_upvalueindex(num_upvals));
+            dasm_put(Dst, 1782, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32), (unsigned int)((uintptr_t)(mbr_ct)), (unsigned int)(((uintptr_t)(mbr_ct))>>32), lua_upvalueindex(num_upvals));
             break;
 
         case VOID_TYPE:
             lua_pop(L, 1);
-            dasm_put(Dst, 1858, (unsigned int)(perr), (unsigned int)((perr)>>32));
+            dasm_put(Dst, 1858, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32));
             break;
 
         case BOOL_TYPE:
             lua_pop(L, 1);
-            dasm_put(Dst, 1890, (unsigned int)(perr), (unsigned int)((perr)>>32));
+            dasm_put(Dst, 1890, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32));
             break;
 
         case INT8_TYPE:
@@ -1147,7 +1147,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             } else {
                 dasm_put(Dst, 1166);
             }
-            dasm_put(Dst, 1943, (unsigned int)(perr), (unsigned int)((perr)>>32));
+            dasm_put(Dst, 1943, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32));
             break;
 
         case INT16_TYPE:
@@ -1157,27 +1157,27 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             } else {
                 dasm_put(Dst, 1174);
             }
-            dasm_put(Dst, 1943, (unsigned int)(perr), (unsigned int)((perr)>>32));
+            dasm_put(Dst, 1943, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32));
             break;
 
         case INT32_TYPE:
         case ENUM_TYPE:
             lua_pop(L, 1);
             if (mbr_ct->is_unsigned) {
-                dasm_put(Dst, 1993, (unsigned int)(perr), (unsigned int)((perr)>>32));
+                dasm_put(Dst, 1993, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32));
             } else {
-                dasm_put(Dst, 1943, (unsigned int)(perr), (unsigned int)((perr)>>32));
+                dasm_put(Dst, 1943, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32));
             }
             break;
 
         case FLOAT_TYPE:
             lua_pop(L, 1);
-            dasm_put(Dst, 2043, (unsigned int)(perr), (unsigned int)((perr)>>32));
+            dasm_put(Dst, 2043, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32));
             break;
 
         case DOUBLE_TYPE:
             lua_pop(L, 1);
-            dasm_put(Dst, 2048, (unsigned int)(perr), (unsigned int)((perr)>>32));
+            dasm_put(Dst, 2048, (unsigned int)((uintptr_t)(perr)), (unsigned int)(((uintptr_t)(perr))>>32));
             break;
 
         default:

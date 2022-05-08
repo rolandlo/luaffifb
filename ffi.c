@@ -75,31 +75,15 @@ static void debug_print_type(const struct ctype* ct)
 
 void push_upval(lua_State* L, int* key)
 {
-    //lua_pushlightuserdata(L, key);
-	/* This may take away support for versions earlier than 5.3 of Lua
-	{
-		char key_str[128] = {'\0'};
-		sprintf(key_str, "FFI.%p", key);
-		lua_pushstring(L, key_str);
-	}
-	*/
-	lua_pushinteger(L, *key);
+    lua_pushlightuserdata(L, key);
     lua_rawget(L, LUA_REGISTRYINDEX);
 }
 
 void set_upval(lua_State* L, int* key)
 {
-    //lua_pushlightuserdata(L, key);
-	/* This may take away support for versions earlier than 5.3 of Lua
-	{
-		char key_str[128] = {'\0'};
-		sprintf(key_str, "FFI.%p", key);
-		lua_pushstring(L, key_str);
-	}
+    lua_pushlightuserdata(L, key);
     lua_insert(L, -2);
     lua_rawset(L, LUA_REGISTRYINDEX);
-	*/
-	*key = luaL_ref(L, LUA_REGISTRYINDEX);
 }
 
 int equals_upval(lua_State* L, int idx, int* key)
@@ -330,20 +314,6 @@ static int64_t cast_int64(lua_State* L, int idx, int is_cast)
 
 static uint64_t cast_uint64(lua_State* L, int idx, int is_cast)
 { TO_NUMBER(uint64_t, is_cast, lua_tointeger); return ret; }
-
-/*
-int8_t check_int8(lua_State* L, int idx)
-{ return (int8_t) cast_int64(L, idx, 0); }
-
-uint8_t check_uint8(lua_State* L, int idx)
-{ return (uint8_t) cast_uint64(L, idx, 0); }
-
-int16_t check_int16(lua_State* L, int idx)
-{ return (int16_t) cast_int64(L, idx, 0); }
-
-uint16_t check_uint16(lua_State* L, int idx)
-{ return (uint16_t) cast_uint64(L, idx, 0); }
-*/
 
 int32_t check_int32(lua_State* L, int idx)
 { return (int32_t) cast_int64(L, idx, 0); }
@@ -1009,8 +979,7 @@ static ptrdiff_t get_member(lua_State* L, int usr, const struct ctype* ct, struc
         return -1;
     }
 
-    //*mt = *(const struct ctype*) lua_touserdata(L, -1); TRIAL FIX 06-May-2022
-    memcpy(mt, lua_touserdata(L, -1), sizeof(struct ctype));
+    *mt = *(const struct ctype*) lua_touserdata(L, -1);
     lua_getuservalue(L, -1);
     lua_replace(L, -2);
 
@@ -1179,7 +1148,7 @@ static void set_value(lua_State* L, int idx, void* to, int to_usr, const struct 
 
         switch (tt->type) {
         case BOOL_TYPE:
-            *(_Bool*) to = (int8_t)(cast_int64(L, idx, !check_pointers) != 0);
+            *(_Bool*) to = (cast_int64(L, idx, !check_pointers) != 0);
             break;
         case INT8_TYPE:
             if (tt->is_unsigned) {
@@ -1664,7 +1633,7 @@ static int cdata_call(lua_State* L)
 
     if (!lua_isfunction(L, -1)) {
         lua_pop(L, 1);
-		printf("%s:%d Calling compilation here in cdata_call\n", __FILE__, __LINE__);
+		//printf("%s:%d Calling compilation here in cdata_call\n", __FILE__, __LINE__);
         compile_function(L, *p, -1, &ct);
 
         assert(lua_gettop(L) == top + 2); /* uv, closure */
@@ -1750,7 +1719,6 @@ static int ffi_gc(lua_State* L)
  */
 static ptrdiff_t lookup_cdata_index(lua_State* L, int idx, int ct_usr, struct ctype* ct)
 {
-	printf("%s:%d\n", __FILE__, __LINE__);
     struct ctype mt;
     ptrdiff_t off;
 
@@ -1947,40 +1915,12 @@ err:
             return 1;
 
         } else if (ct.type == BOOL_TYPE) {
-            uint64_t val = *(uint8_t*) data;
+            uint64_t val = *(uint64_t*) data;
             lua_pushboolean(L, (int) (val & (UINT64_C(1) << ct.bit_offset)));
             return 1;
 
         } else {
-            //uint64_t val = *(uint64_t*) data; //Trial fix
-            uint64_t val = 0;
-			switch (ct.type) {
-			//printf("%s:%d\n", __FILE__, __LINE__);
-				case INT8_TYPE: {
-					uint8_t ui;
-					memcpy(&ui, data, sizeof(uint8_t));
-					val = ui;
-					//val = *(uint8_t*)data;
-					break;
-				}
-				case INT16_TYPE: {
-					uint16_t ui;
-					memcpy(&ui, data, sizeof(uint16_t));
-					val = ui;
-					//val = *(uint16_t*)data;
-					break;
-				}
-				case INT32_TYPE: {
-					uint32_t ui;
-					memcpy(&ui, data, sizeof(uint32_t));
-					val = ui;
-					//val = *(uint32_t*)data;
-					break;
-				}
-				case INT64_TYPE:
-				default:
-					return luaL_error(L, "Inavaid data type");
-			}
+            uint64_t val = *(uint64_t*) data;
             val >>= ct.bit_offset;
             val &= (UINT64_C(1) << ct.bit_size) - 1;
             lua_pushinteger(L, val);
@@ -2154,36 +2094,8 @@ static void push_number(lua_State* L, int64_t val, int ct_usr, const struct ctyp
         intptr_t* p = (intptr_t*) push_cdata(L, ct_usr, ct);
         *p = val;
     } else {
-        void* p = (int64_t*) push_cdata(L, ct_usr, ct);
-        //*p = val;
-		//memcpy(p, &val, ctype_size(L, ct));
-		switch (ct->type) {
-			case BOOL_TYPE:
-			case INT8_TYPE: {
-				int8_t* b = (int8_t*)p;
-				*b = (int8_t)val;
-				}
-				break;
-			case INT16_TYPE: {
-				int16_t* b = (int16_t*)p;
-				*b = (int16_t)val;
-				}
-				break;
-			case ENUM_TYPE:
-			case INT32_TYPE: {
-				int32_t* b = (int32_t*)p;
-				*b = (int32_t)val;
-				}
-				break;
-			case INT64_TYPE: {
-				int64_t* b = (int64_t*)p;
-				*b = (int64_t)val;
-				}
-				break;
-			default:
-				luaL_error(L, "Unsupported type for this operation");
-				break;
-		}
+        int64_t* p = (int64_t*) push_cdata(L, ct_usr, ct);
+        *p = val;
     }
 }
 
@@ -2383,16 +2295,9 @@ static int cdata_add(lua_State* L)
         return 1;
 
     } else {
-		int64_t left = check_intptr(L, 1, lp, &lt);
-		int64_t right = check_intptr(L, 2, rp, &rt);
-		/*
-		 * There is a side effect of check_intptr that it freshly assigns
-		 * values for lt and rt if one of them is an INVALID type (e.g. LUA NUMBER)
-		 * thus the rank and therefore ct and ct_usr should get re-evaluated once again.
-		 */
-		ct_usr = rank(&lt) > rank(&rt) ? 3 : 4;
-		ct = rank(&lt) > rank(&rt) ? lt : rt;
-		assert(lua_gettop(L) == 4);
+        int64_t left = check_intptr(L, 1, lp, &lt);
+        int64_t right = check_intptr(L, 2, rp, &rt);
+        assert(lua_gettop(L) == 4);
 
         /* note due to 2s complement it doesn't matter if we do the addition as int or uint,
          * but the result needs to be uint64_t if either of the sources are */
@@ -2457,14 +2362,6 @@ static int cdata_sub(lua_State* L)
     } else {
         int64_t left = check_intptr(L, 1, lp, &lt);
         int64_t right = check_intptr(L, 2, rp, &rt);
-		/*
-		 * There is a side effect of check_intptr that it freshly assigns
-		 * values for lt and rt if one of them is an INVALID type (e.g. LUA NUMBER)
-		 * thus the rank and therefore ct and ct_usr should get re-evaluated once again.
-		 */
-		ct_usr = rank(&lt) > rank(&rt) ? 3 : 4;
-		ct = rank(&lt) > rank(&rt) ? lt : rt;
-		assert(lua_gettop(L) == 4);
 
         if (rt.pointers) {
             luaL_error(L, "NYI: can't subtract a pointer value");
@@ -2984,7 +2881,7 @@ static int ffi_load(lua_State* L)
     const char* libname = luaL_checkstring(L, 1);
     void** lib = (void**) lua_newuserdata(L, sizeof(void*));
 
-    *lib = LoadLibraryA((const char *)libname);
+    *lib = LoadLibraryA(libname);
 
 #ifdef LIB_FORMAT_1
     if (!*lib) {
@@ -3055,8 +2952,7 @@ static void* lookup_global(lua_State* L, int modidx, int nameidx, const char** p
     }
 
     /* leave just the ct_usr on the stack */
-    //*ct = *(const struct ctype*) lua_touserdata(L, -1); Trial fix 06-May-2022
-    memcpy(ct, lua_touserdata(L, -1), sizeof(struct ctype));
+    *ct = *(const struct ctype*) lua_touserdata(L, -1);
     lua_getuservalue(L, -1);
     lua_replace(L, top + 1);
     lua_pop(L, 1);
@@ -3072,7 +2968,6 @@ static void* lookup_global(lua_State* L, int modidx, int nameidx, const char** p
     }
     lua_pop(L, 2);
 
-	//printf("%s:%d name = [%s]\n", __FILE__, __LINE__, *pname);
     sym = find_symbol(L, modidx, *pname);
 
     assert(lua_gettop(L) == top + 1);
@@ -3081,23 +2976,19 @@ static void* lookup_global(lua_State* L, int modidx, int nameidx, const char** p
 
 static int cmodule_index(lua_State* L)
 {
-	printf("%s:%d\n", __FILE__, __LINE__);
     const char* asmname;
     struct ctype ct;
     void *sym = 0;
 
-	printf("%s:%d # = %d\n", __FILE__, __LINE__, lua_gettop(L));
+	//printf("%s:%d # = %d\n", __FILE__, __LINE__, lua_gettop(L));
     lua_settop(L, 2);
 
-	asm("ISB");
     /* see if we have already loaded the function */
     lua_getuservalue(L, 1);
     lua_pushvalue(L, 2);
+	//printf("%s:%d L[2] = %s\n", __FILE__, __LINE__, lua_tostring(L, 2));
     lua_rawget(L, -2);
-	printf("%s:%d L[2] = %s\n", __FILE__, __LINE__, lua_tostring(L, 2));
     if (!lua_isnil(L, -1)) {
-		printf("%s:%d L[2] = %s\n", __FILE__, __LINE__, lua_tostring(L, 2));
-		printf("%s:%d L[%s] = %d,%p\n", __FILE__, __LINE__, lua_tostring(L, 2), lua_type(L, 1), lua_tocfunction(L, -1));
         return 1;
     }
     lua_pop(L, 2);
@@ -3112,9 +3003,9 @@ static int cmodule_index(lua_State* L)
     lua_pop(L, 2);
 
     /* lookup_global pushes the ct_usr */
+	//printf("%s:%d # = %d\n", __FILE__, __LINE__, lua_gettop(L));
     sym = lookup_global(L, 1, 2, &asmname, &ct);
-	printf("%s:%d # = %d asmname=%s\n", __FILE__, __LINE__, lua_gettop(L), asmname);
-	printf("%s:%d # = %d\n", __FILE__, __LINE__, lua_gettop(L));
+	//printf("%s:%d # = %d\n", __FILE__, __LINE__, lua_gettop(L));
 
 #if defined _WIN32 && !defined _WIN64 && (defined __i386__ || defined _M_IX86)
     if (!sym && ct.type == FUNCTION_TYPE) {
@@ -3139,9 +3030,8 @@ static int cmodule_index(lua_State* L)
     assert(lua_gettop(L) == 3); /* module, name, ct_usr */
 
     if (ct.type == FUNCTION_TYPE) {
-		printf("%s:%d Calling compilation here in cmodule_index sym=[%p] top=[%d]\n", __FILE__, __LINE__, sym, lua_gettop(L));
+		//printf("%s:%d Calling compilation here in cmodule_index sym=[%p]\n", __FILE__, __LINE__, sym);
         compile_function(L, (cfunction) sym, -1, &ct);
-		printf("%s:%d top=[%d] pointer=%p\n", __FILE__, __LINE__, lua_gettop(L), *(lua_tocfunction(L, -1)));
         assert(lua_gettop(L) == 4); /* module, name, ct_usr, function */
 
         /* set module usr value[luaname] = function to cache for next time */
@@ -3150,8 +3040,6 @@ static int cmodule_index(lua_State* L)
         lua_pushvalue(L, -3);
         lua_rawset(L, -3);
         lua_pop(L, 1); /* module uv */
-		printf("%s:%d L[%s] = %d,%s\n", __FILE__, __LINE__, lua_tostring(L, 2), lua_type(L, 4), lua_typename(L, lua_type(L, 4)));
-		
         return 1;
     }
 

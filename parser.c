@@ -558,8 +558,7 @@ static int copy_submembers(lua_State* L, int to_usr, int from_usr, const struct 
     for (i = 1; i <= sublen; i++) {
         lua_rawgeti(L, from_usr, i);
 
-        //ct = *(const struct ctype*) lua_touserdata(L, -1); 03-May-2022 trial fix
-        memcpy(&ct, (const struct ctype*) lua_touserdata(L, -1), sizeof(struct ctype));
+        ct = *(const struct ctype*) lua_touserdata(L, -1);
         ct.offset += ft->offset;
         lua_getuservalue(L, -1);
 
@@ -573,9 +572,7 @@ static int copy_submembers(lua_State* L, int to_usr, int from_usr, const struct 
     lua_pushnil(L);
     while (lua_next(L, from_usr)) {
         if (lua_type(L, -2) == LUA_TSTRING) {
-            struct ctype ct;
-            //struct ctype ct = *(const struct ctype*) lua_touserdata(L, -1); 03-May-2022 trial fix
-			memcpy(&ct, (const struct ctype*) lua_touserdata(L, -1), sizeof(struct ctype));
+            struct ctype ct = *(const struct ctype*) lua_touserdata(L, -1);
             ct.offset += ft->offset;
             lua_getuservalue(L, -1);
 
@@ -717,8 +714,7 @@ static int calculate_struct_offsets(lua_State* L, struct parser* P, int ct_usr, 
 
         /* get the member type */
         lua_rawgeti(L, tmp_usr, i);
-        //mt = *(const struct ctype*) lua_touserdata(L, -1); 03-May-2022 trial fix
-        memcpy(&mt, (const struct ctype*) lua_touserdata(L, -1), sizeof(struct ctype));
+        mt = *(const struct ctype*) lua_touserdata(L, -1);
         //debug_print_type(&mt);
 
         /* get the member user table */
@@ -1254,7 +1250,7 @@ int parse_type(lua_State* L, struct parser* P, struct ctype* ct)
     struct token tok;
     int top = lua_gettop(L);
 
-    memset(ct, 0, sizeof(struct ctype));
+    memset(ct, 0, sizeof(*ct));
 
     require_token(L, P, &tok);
 
@@ -1305,7 +1301,6 @@ int parse_type(lua_State* L, struct parser* P, struct ctype* ct)
         /* lookup type */
         push_upval(L, &types_key);
         parse_type_name(L, P);
-		//printf("%s:%d type name=[%s]\n", __FILE__, __LINE__, lua_tostring(L, -1));
         lua_rawget(L, -2);
         lua_remove(L, -2);
 
@@ -1334,7 +1329,6 @@ int parse_type(lua_State* L, struct parser* P, struct ctype* ct)
             break;
         }
     }
-	//printf("%s:%d\n", __FILE__, __LINE__);
 
     assert(lua_gettop(L) == top + 1 && (lua_istable(L, -1) || lua_isnil(L, -1)));
     return 0;
@@ -1666,9 +1660,7 @@ static struct ctype* parse_function(lua_State* L, struct parser* P, int ct_usr, 
     ct->type = FUNCTION_TYPE;
     ct->is_defined = 1;
 
-	//printf("%s:%d\n", __FILE__, __LINE__);
     if (name->type == TOK_NIL) {
-		//printf("%s:%d\n", __FILE__, __LINE__);
         for (;;) {
             require_token(L, P, &tok);
 
@@ -1702,7 +1694,6 @@ static struct ctype* parse_function(lua_State* L, struct parser* P, int ct_usr, 
         check_token(L, P, TOK_CLOSE_PAREN, NULL, "unexpected token in function on line %d", P->line);
         check_token(L, P, TOK_OPEN_PAREN, NULL, "unexpected token in function on line %d", P->line);
     }
-	//printf("%s:%d\n", __FILE__, __LINE__);
 
     parse_function_arguments(L, P, ct_usr, ct);
 
@@ -1714,7 +1705,6 @@ static struct ctype* parse_function(lua_State* L, struct parser* P, int ct_usr, 
     if (lua_gettop(L) == ct_usr+1) {
         lua_replace(L, ct_usr);
     }
-	//printf("%s:%d\n", __FILE__, __LINE__);
 
     assert(lua_gettop(L) == top + 1 && lua_istable(L, -1));
     return ret;
@@ -1754,9 +1744,7 @@ static struct ctype* parse_argument2(lua_State* L, struct parser* P, int ct_usr,
             /* parse attribute has filled out appropriate fields in type */
 
         } else if (tok.type == TOK_OPEN_PAREN) {
-			//printf("%s:%d PARSE_FUNCTION {\n", __FILE__, __LINE__);
             ct = parse_function(L, P, ct_usr, ct, name, asmname);
-			//printf("%s:%d PARSE_FUNCTION }\n", __FILE__, __LINE__);
             ft_usr = lua_gettop(L);
 
         } else if (tok.type == TOK_OPEN_SQUARE) {
@@ -1809,7 +1797,7 @@ static struct ctype* parse_argument2(lua_State* L, struct parser* P, int ct_usr,
             }
 
             ct->is_bitfield = 1;
-            ct->bit_size = (unsigned) bsize; /* Potential overflow */
+            ct->bit_size = (unsigned) bsize;
 
         } else if (tok.type != TOK_TOKEN) {
             /* we've reached the end of the declaration */
@@ -1858,8 +1846,7 @@ static void find_canonical_usr(lua_State* L, int ct_usr, const struct ctype *ct)
 
     /* first canonize the return type */
     lua_rawgeti(L, ct_usr, 0);
-    //rt = *(struct ctype*) lua_touserdata(L, -1); 02-May-2022 trial fix
-    memcpy(&rt, (struct ctype*) lua_touserdata(L, -1), sizeof(struct ctype));
+    rt = *(struct ctype*) lua_touserdata(L, -1);
     lua_getuservalue(L, -1);
     find_canonical_usr(L, -1, &rt);
     push_ctype(L, -1, &rt);
@@ -1921,18 +1908,13 @@ static void find_canonical_usr(lua_State* L, int ct_usr, const struct ctype *ct)
  *
  * pushes the updated user value on the top of the stack
  */
-static int pa2 = 0;
 void parse_argument(lua_State* L, struct parser* P, int ct_usr, struct ctype* ct, struct token* pname, struct parser* asmname)
 {
     struct token tok, name;
     int top = lua_gettop(L);
 
     memset(&name, 0, sizeof(name));
-	pa2 ++;
-	//printf("%s:%d parse_argument2 %d {\n", __FILE__, __LINE__, pa2);
     parse_argument2(L, P, ct_usr, ct, &name, asmname);
-	//printf("%s:%d parse_argument2 %d }\n", __FILE__, __LINE__, pa2);
-	pa2 --;
 
     for (;;) {
         if (!next_token(L, P, &tok)) {
@@ -2205,7 +2187,6 @@ static int parse_root(lua_State* L, struct parser* P)
             struct token name;
             struct parser asmname;
 
-			memset(&type, 0, sizeof(struct ctype));
             memset(&name, 0, sizeof(name));
             memset(&asmname, 0, sizeof(asmname));
 
@@ -2215,10 +2196,6 @@ static int parse_root(lua_State* L, struct parser* P)
 
             for (;;) {
                 parse_argument(L, P, -1, &type, &name, &asmname);
-				char nn [100];
-				memset(nn,0,100);
-				strncpy(nn, name.str, name.size);
-				//printf("%s:%d name=[%s]\n", __FILE__, __LINE__, nn);
 
                 if (name.size) {
                     /* global/function declaration */
@@ -2281,7 +2258,6 @@ static int parse_root(lua_State* L, struct parser* P)
 
 int ffi_cdef(lua_State* L)
 {
-	//printf("%s:%d [START CDEF]\n", __FILE__, __LINE__);
     struct parser P;
 
     P.line = 1;
@@ -2291,7 +2267,6 @@ int ffi_cdef(lua_State* L)
     if (parse_root(L, &P) == PRAGMA_POP) {
         luaL_error(L, "pragma pop without an associated push on line %d", P.line);
     }
-	//printf("%s:%d [END CDEF]\n", __FILE__, __LINE__);
 
     return 0;
 }

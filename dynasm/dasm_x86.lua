@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 -- DynASM x86/x64 module.
 --
--- Copyright (C) 2005-2022 Mike Pall. All rights reserved.
+-- Copyright (C) 2005-2020 Mike Pall. All rights reserved.
 -- See dynasm.lua for full copyright notice.
 ------------------------------------------------------------------------------
 
@@ -11,9 +11,9 @@ local x64 = x64
 local _info = {
   arch =	x64 and "x64" or "x86",
   description =	"DynASM x86/x64 module",
-  version =	"1.5.0",
-  vernum =	 10500,
-  release =	"2021-05-02",
+  version =	"1.4.0",
+  vernum =	 10400,
+  release =	"2015-10-18",
   author =	"Mike Pall",
   license =	"MIT",
 }
@@ -484,22 +484,6 @@ local function wputdarg(n)
   end
 end
 
--- Put signed or unsigned qword or arg.
-local function wputqarg(n)
-  local tn = type(n)
-  if tn == "number" then -- This is only used for numbers from -2^31..2^32-1.
-    wputb(band(n, 255))
-    wputb(band(shr(n, 8), 255))
-    wputb(band(shr(n, 16), 255))
-    wputb(shr(n, 24))
-    local sign = n < 0 and 255 or 0
-    wputb(sign); wputb(sign); wputb(sign); wputb(sign)
-  else
-    waction("IMM_D", format("(unsigned int)(%s)", n))
-    waction("IMM_D", format("(unsigned int)((unsigned long long)(%s)>>32)", n))
-  end
-end
-
 -- Put operand-size dependent number or arg (defaults to dword).
 local function wputszarg(sz, n)
   if not sz or sz == "d" or sz == "q" then wputdarg(n)
@@ -679,16 +663,10 @@ local function opmodestr(op, args)
 end
 
 -- Convert number to valid integer or nil.
-local function toint(expr, isqword)
+local function toint(expr)
   local n = tonumber(expr)
   if n then
-    if n % 1 ~= 0 then
-      werror("not an integer number `"..expr.."'")
-    elseif isqword then
-      if n < -2147483648 or n > 2147483647 then
-	n = nil -- Handle it as an expression to avoid precision loss.
-      end
-    elseif n < -2147483648 or n > 4294967295 then
+    if n % 1 ~= 0 or n < -2147483648 or n > 4294967295 then
       werror("bad integer number `"..expr.."'")
     end
     return n
@@ -771,7 +749,7 @@ local function rtexpr(expr)
 end
 
 -- Parse operand and return { mode, opsize, reg, xreg, xsc, disp, imm }.
-local function parseoperand(param, isqword)
+local function parseoperand(param)
   local t = {}
 
   local expr = param
@@ -832,7 +810,7 @@ local function parseoperand(param, isqword)
       if t.disp then break end
 
       -- [reg+xreg...]
-      local xreg, tailx = match(tailr, "^%+%s*([@%w_:]+)%s*(.*)$")
+      local xreg, tailx = match(tailr, "^+%s*([@%w_:]+)%s*(.*)$")
       xreg, t.xreg, tp = rtexpr(xreg)
       if not t.xreg then
 	-- [reg+-expr]
@@ -859,7 +837,7 @@ local function parseoperand(param, isqword)
       t.disp = dispexpr(tailx)
     else
       -- imm or opsize*imm
-      local imm = toint(expr, isqword)
+      local imm = toint(expr)
       if not imm and sub(expr, 1, 1) == "*" and t.opsize then
 	imm = toint(sub(expr, 2))
 	if imm then
@@ -1974,7 +1952,7 @@ local function dopattern(pat, args, sz, op, needrex)
 	local a = args[narg]
 	narg = narg + 1
 	local mode, imm = a.mode, a.imm
-	if mode == "iJ" and not match(x64 and "J" or "iIJ", c) then
+	if mode == "iJ" and not match("iIJ", c) then
 	  werror("bad operand size for label")
 	end
 	if c == "S" then
@@ -2155,8 +2133,10 @@ if x64 then
     end
     local psz, sk = wputop(sz, opcode, rex, nil, vreg)
     wvreg("opcode", vreg, psz, sk)
-    waction("IMM_D", format("(unsigned int)(%s)", op64))
-    waction("IMM_D", format("(unsigned int)((%s)>>32)", op64))
+    --waction("IMM_D", format("(unsigned int)(%s)", op64))
+    --waction("IMM_D", format("(unsigned int)((%s)>>32)", op64))
+    waction("IMM_D", format("(unsigned int)((uintptr_t)(%s))", op64))
+    waction("IMM_D", format("(unsigned int)(((uintptr_t)(%s))>>32)", op64))
   end
 end
 
@@ -2166,16 +2146,14 @@ end
 local function op_data(params)
   if not params then return "imm..." end
   local sz = sub(params.op, 2, 2)
-  if sz == "l" then sz = "d" elseif sz == "a" then sz = addrsize end
+  if sz == "a" then sz = addrsize end
   for _,p in ipairs(params) do
-    local a = parseoperand(p, sz == "q")
+    local a = parseoperand(p)
     if sub(a.mode, 1, 1) ~= "i" or (a.opsize and a.opsize ~= sz) then
       werror("bad mode or size in `"..p.."'")
     end
     if a.mode == "iJ" then
       wputlabel("IMM_", a.imm, 1)
-    elseif sz == "q" then
-      wputqarg(a.imm)
     else
       wputszarg(sz, a.imm)
     end
@@ -2187,11 +2165,7 @@ map_op[".byte_*"] = op_data
 map_op[".sbyte_*"] = op_data
 map_op[".word_*"] = op_data
 map_op[".dword_*"] = op_data
-map_op[".qword_*"] = op_data
 map_op[".aword_*"] = op_data
-map_op[".long_*"] = op_data
-map_op[".quad_*"] = op_data
-map_op[".addr_*"] = op_data
 
 ------------------------------------------------------------------------------
 
