@@ -349,9 +349,9 @@ struct ctype {
     unsigned is_unsigned : 1;
 };
 
-#ifdef _MSC_VER
-__declspec(align(16))
-#endif
+//#ifdef _MSC_VER
+//__declspec(align(16))
+//#endif
 struct cdata {
     const struct ctype type
 #ifdef __GNUC__
@@ -439,6 +439,10 @@ uint64_t check_uint64(lua_State* L, int idx);
 int64_t check_int64(lua_State* L, int idx);
 int32_t check_int32(lua_State* L, int idx);
 uint32_t check_uint32(lua_State* L, int idx);
+int16_t check_int16(lua_State* L, int idx);
+uint16_t check_uint16(lua_State* L, int idx);
+int8_t check_int8(lua_State* L, int idx);
+uint8_t check_uint8(lua_State* L, int idx);
 uintptr_t check_uintptr(lua_State* L, int idx);
 int32_t check_enum(lua_State* L, int idx, int to_usr, const struct ctype* tt);
 /* these two will always push a value so that we can create structs/functions on the fly */

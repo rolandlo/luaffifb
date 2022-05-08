@@ -8,6 +8,9 @@
  */
 #include "ffi.h"
 
+#define LOCAL_ALIGN_MASK 15
+#define LOCAL_ALIGNED_PTR(p) ((((uintptr_t)p & ~LOCAL_ALIGN_MASK) + 0x10 ))
+
 static int to_define_key;
 
 static void update_on_definition(lua_State* L, int ct_usr, int ct_idx)
@@ -89,7 +92,15 @@ struct ctype* push_ctype(lua_State* L, int ct_usr, const struct ctype* ct)
     ct_usr = lua_absindex(L, ct_usr);
 
     ret = (struct ctype*) lua_newuserdata(L, sizeof(struct ctype));
-    *ret = *ct;
+	/*
+	{
+		void * p = NULL;
+		p = lua_newuserdata(L, 16 + sizeof(struct ctype));
+		ret = (struct ctype*)LOCAL_ALIGNED_PTR(p);
+	}
+	*/
+    //*ret = *ct; 03-May-2022 trial fix
+    memcpy(ret, ct, sizeof(struct ctype));
 
     push_upval(L, &ctype_mt_key);
     lua_setmetatable(L, -2);
@@ -102,11 +113,13 @@ struct ctype* push_ctype(lua_State* L, int ct_usr, const struct ctype* ct)
 #endif
 
     if (ct_usr && !lua_isnil(L, ct_usr)) {
+		//printf("%s:%d\n", __FILE__, __LINE__);
         lua_pushvalue(L, ct_usr);
         lua_setuservalue(L, -2);
     }
 
     if (!ct->is_defined && ct_usr && !lua_isnil(L, ct_usr)) {
+		//printf("%s:%d\n", __FILE__, __LINE__);
         update_on_definition(L, ct_usr, -1);
     }
 
@@ -138,6 +151,7 @@ void* push_cdata(lua_State* L, int ct_usr, const struct ctype* ct)
     struct cdata* cd;
     size_t sz = ct->is_reference ? sizeof(void*) : ctype_size(L, ct);
     ct_usr = lua_absindex(L, ct_usr);
+	//printf("%s:%d type = [%d] sz=[%zu]\n", __FILE__, __LINE__, ct->type, ct->base_size);
 
     /* This is to stop valgrind from complaining. Bitfields are accessed in 8
      * byte chunks so that the code doesn't have to deal with different access
@@ -150,16 +164,20 @@ void* push_cdata(lua_State* L, int ct_usr, const struct ctype* ct)
         sz = ALIGN_UP(sz, 7);
     }
 
-    cd = (struct cdata*) lua_newuserdata(L, sizeof(struct cdata) + sz);
-    //*(struct ctype*) &cd->type = *ct;
+	{
+		void * p = NULL;
+		p = lua_newuserdata(L, 16 + sizeof(struct cdata) + sz);
+		//*(struct ctype*) &cd->type = *ct;
+		cd = (struct cdata*)LOCAL_ALIGNED_PTR(p);
+	}
     memcpy((struct ctype*) &(cd->type), ct, sizeof(struct ctype));
-    memset(cd+1, 0, sz);
+    memset((struct ctype*)cd+1, 0, sz);
 
+#if 0
     /* TODO: handle cases where lua_newuserdata returns a pointer that is not
      * aligned */
-#if 0
-    assert((uintptr_t) (cd + 1) % 8 == 0);
 #endif
+    assert((uintptr_t) (cd + 1) % 8 == 0);
 
 #if LUA_VERSION_NUM == 501
     if (!ct_usr || lua_isnil(L, ct_usr)) {
@@ -169,6 +187,7 @@ void* push_cdata(lua_State* L, int ct_usr, const struct ctype* ct)
 #endif
 
     if (ct_usr && !lua_isnil(L, ct_usr)) {
+		//printf("%s:%d\n", __FILE__, __LINE__);
         lua_pushvalue(L, ct_usr);
         lua_setuservalue(L, -2);
     }
@@ -177,10 +196,12 @@ void* push_cdata(lua_State* L, int ct_usr, const struct ctype* ct)
     lua_setmetatable(L, -2);
 
     if (!ct->is_defined && ct_usr && !lua_isnil(L, ct_usr)) {
+		//printf("%s:%d\n", __FILE__, __LINE__);
         update_on_definition(L, ct_usr, -1);
     }
+		//printf("%s:%d\n", __FILE__, __LINE__);
 
-    return cd+1;
+    return (struct ctype*)cd+1;
 }
 
 void push_callback(lua_State* L, cfunction luafunc, cfunction cfunc)
@@ -212,7 +233,8 @@ void check_ctype(lua_State* L, int idx, struct ctype* ct)
         }
 
         lua_pop(L, 1); /* pop the metatable */
-        *ct = *(struct ctype*) lua_touserdata(L, idx);
+        //*ct = *(struct ctype*) lua_touserdata(L, idx);
+		memcpy(ct, lua_touserdata(L, idx), sizeof(struct ctype));
         lua_getuservalue(L, idx);
 
     } else {
@@ -245,7 +267,13 @@ void* to_cdata(lua_State* L, int idx, struct ctype* ct)
     }
 
     lua_pop(L, 1); /* mt */
-    cd = (struct cdata*) lua_touserdata(L, idx);
+	{
+		void * p = NULL;
+		p = lua_touserdata(L, idx);
+		//*(struct ctype*) &cd->type = *ct;
+		cd = (struct cdata*)LOCAL_ALIGNED_PTR(p);
+	}
+    //cd = (struct cdata*) lua_touserdata(L, idx);
     memcpy(ct, &(cd->type), sizeof(struct ctype));
     lua_getuservalue(L, idx);
 

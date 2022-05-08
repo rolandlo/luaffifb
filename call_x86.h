@@ -1,7 +1,7 @@
 /*
 ** This file has been pre-processed with DynASM.
-** http://luajit.org/dynasm.html
-** DynASM version 1.4.0, DynASM x86 version 1.4.0
+** https://luajit.org/dynasm.html
+** DynASM version 1.5.0, DynASM x86 version 1.5.0
 ** DO NOT EDIT! The original file is in "call_x86.dasc".
 */
 
@@ -17,7 +17,7 @@
 //|.arch x64
 //|.else
 //|.arch x86
-#if DASM_VERSION != 10400
+#if DASM_VERSION != 10500
 #error "Version mismatch between DynASM and included encoding engine"
 #endif
 //|.endif

@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 -- DynASM ARM module.
 --
--- Copyright (C) 2005-2020 Mike Pall. All rights reserved.
+-- Copyright (C) 2005-2022 Mike Pall. All rights reserved.
 -- See dynasm.lua for full copyright notice.
 ------------------------------------------------------------------------------
 
@@ -9,9 +9,9 @@
 local _info = {
   arch =	"arm",
   description =	"DynASM ARM module",
-  version =	"1.4.0",
-  vernum =	 10400,
-  release =	"2015-10-18",
+  version =	"1.5.0",
+  vernum =	 10500,
+  release =	"2021-05-02",
   author =	"Mike Pall",
   license =	"MIT",
 }
@@ -993,14 +993,15 @@ end
 map_op[".long_*"] = function(params)
   if not params then return "imm..." end
   for _,p in ipairs(params) do
+   if n then
     local n = tonumber(p)
-	if n then
-     if n < 0 then n = n + 2^32 end
-	 wputw(n);
-	 if secpos+2 > maxsecpos then wflush() end
-    else
-	 waction("LONG", 0, format("(uintptr_t)(%s)", p))
-    end
+    if not n then werror("bad immediate `"..p.."'") end
+    if n < 0 then n = n + 2^32 end
+    wputw(n)
+    if secpos+2 > maxsecpos then wflush() end
+   else
+    waction("LONG", 0, format("(uintptr_t)(%s)", p))
+   end
   end
 end
 

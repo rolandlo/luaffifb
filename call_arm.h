@@ -1,7 +1,7 @@
 /*
 ** This file has been pre-processed with DynASM.
-** http://luajit.org/dynasm.html
-** DynASM version 1.4.0, DynASM arm version 1.4.0
+** https://luajit.org/dynasm.html
+** DynASM version 1.5.0, DynASM arm version 1.5.0
 ** DO NOT EDIT! The original file is in "call_arm.dasc".
 */
 
@@ -14,7 +14,7 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 //|.arch arm
-#if DASM_VERSION != 10400
+#if DASM_VERSION != 10500
 #error "Version mismatch between DynASM and included encoding engine"
 #endif
 //|.actionlist build_actionlist
