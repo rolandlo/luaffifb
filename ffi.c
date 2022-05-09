@@ -75,15 +75,13 @@ static void debug_print_type(const struct ctype* ct)
 
 void push_upval(lua_State* L, int* key)
 {
-    lua_pushlightuserdata(L, key);
+    lua_pushinteger(L, *key);
     lua_rawget(L, LUA_REGISTRYINDEX);
 }
 
 void set_upval(lua_State* L, int* key)
 {
-    lua_pushlightuserdata(L, key);
-    lua_insert(L, -2);
-    lua_rawset(L, LUA_REGISTRYINDEX);
+	*key = luaL_ref(L, LUA_REGISTRYINDEX);
 }
 
 int equals_upval(lua_State* L, int idx, int* key)
@@ -315,6 +313,17 @@ static int64_t cast_int64(lua_State* L, int idx, int is_cast)
 static uint64_t cast_uint64(lua_State* L, int idx, int is_cast)
 { TO_NUMBER(uint64_t, is_cast, lua_tointeger); return ret; }
 
+int8_t check_int8(lua_State* L, int idx)
+{ return (int8_t) cast_int64(L, idx, 0); }
+
+uint8_t check_uint8(lua_State* L, int idx)
+{ return (uint8_t) cast_uint64(L, idx, 0); }
+
+int16_t check_int16(lua_State* L, int idx)
+{ return (int16_t) cast_int64(L, idx, 0); }
+
+uint16_t check_uint16(lua_State* L, int idx)
+{ return (uint16_t) cast_uint64(L, idx, 0); }
 int32_t check_int32(lua_State* L, int idx)
 { return (int32_t) cast_int64(L, idx, 0); }
 
@@ -979,7 +988,8 @@ static ptrdiff_t get_member(lua_State* L, int usr, const struct ctype* ct, struc
         return -1;
     }
 
-    *mt = *(const struct ctype*) lua_touserdata(L, -1);
+    //*mt = *(const struct ctype*) lua_touserdata(L, -1); TRIAL FIX 06-May-2022
+    memcpy(mt, (const struct ctype*) lua_touserdata(L, -1), sizeof(struct ctype));
     lua_getuservalue(L, -1);
     lua_replace(L, -2);
 
@@ -1148,7 +1158,7 @@ static void set_value(lua_State* L, int idx, void* to, int to_usr, const struct 
 
         switch (tt->type) {
         case BOOL_TYPE:
-            *(_Bool*) to = (cast_int64(L, idx, !check_pointers) != 0);
+            *(_Bool*) to = (uint8_t)(cast_int64(L, idx, !check_pointers) != 0);
             break;
         case INT8_TYPE:
             if (tt->is_unsigned) {
@@ -1915,12 +1925,39 @@ err:
             return 1;
 
         } else if (ct.type == BOOL_TYPE) {
-            uint64_t val = *(uint64_t*) data;
+            uint64_t val = *(uint8_t*) data;
             lua_pushboolean(L, (int) (val & (UINT64_C(1) << ct.bit_offset)));
             return 1;
 
         } else {
-            uint64_t val = *(uint64_t*) data;
+            //uint64_t val = *(uint64_t*) data; //Trial fix
+            uint64_t val = 0;
+			switch (ct.type) {
+				case INT8_TYPE: {
+					uint8_t ui;
+					memcpy(&ui, data, sizeof(uint8_t));
+					val = ui;
+					//val = *(uint8_t*)data;
+					break;
+				}
+				case INT16_TYPE: {
+					uint16_t ui;
+					memcpy(&ui, data, sizeof(uint16_t));
+					val = ui;
+					//val = *(uint16_t*)data;
+					break;
+				}
+				case INT32_TYPE: {
+					uint32_t ui;
+					memcpy(&ui, data, sizeof(uint32_t));
+					val = ui;
+					//val = *(uint32_t*)data;
+					break;
+				}
+				case INT64_TYPE:
+				default:
+					return luaL_error(L, "Inavaid data type");
+			}
             val >>= ct.bit_offset;
             val &= (UINT64_C(1) << ct.bit_size) - 1;
             lua_pushinteger(L, val);
@@ -2094,8 +2131,35 @@ static void push_number(lua_State* L, int64_t val, int ct_usr, const struct ctyp
         intptr_t* p = (intptr_t*) push_cdata(L, ct_usr, ct);
         *p = val;
     } else {
-        int64_t* p = (int64_t*) push_cdata(L, ct_usr, ct);
-        *p = val;
+        void* p = (int64_t*) push_cdata(L, ct_usr, ct);
+        //*p = val;
+		/* TODO : Will this work for big endian architectures? 
+		 * ctype_size returns 64 for all integer types
+		 */
+		memset(p, 0, ctype_size(L, ct));
+		switch (ct->type) {
+			case BOOL_TYPE:
+			case INT8_TYPE: {
+				memcpy(p, &val, ctype_size(L, ct));
+				}
+				break;
+			case INT16_TYPE: {
+				memcpy(p, &val, ctype_size(L, ct));
+				}
+				break;
+			case ENUM_TYPE:
+			case INT32_TYPE: {
+				memcpy(p, &val, ctype_size(L, ct));
+				}
+				break;
+			case INT64_TYPE: {
+				memcpy(p, &val, ctype_size(L, ct));
+				}
+				break;
+			default:
+				luaL_error(L, "Unsupported type for this operation");
+				break;
+		}
     }
 }
 
@@ -2297,6 +2361,13 @@ static int cdata_add(lua_State* L)
     } else {
         int64_t left = check_intptr(L, 1, lp, &lt);
         int64_t right = check_intptr(L, 2, rp, &rt);
+		/*
+		 * There is a side effect of check_intptr that it freshly assigns
+		 * values for lt and rt if one of them is an INVALID type (e.g. LUA NUMBER)
+		 * thus the rank and therefore ct and ct_usr should get re-evaluated once again.
+		 */
+		ct_usr = rank(&lt) > rank(&rt) ? 3 : 4;
+		ct = rank(&lt) > rank(&rt) ? lt : rt;
         assert(lua_gettop(L) == 4);
 
         /* note due to 2s complement it doesn't matter if we do the addition as int or uint,
@@ -2362,6 +2433,14 @@ static int cdata_sub(lua_State* L)
     } else {
         int64_t left = check_intptr(L, 1, lp, &lt);
         int64_t right = check_intptr(L, 2, rp, &rt);
+		/*
+		 * There is a side effect of check_intptr that it freshly assigns
+		 * values for lt and rt if one of them is an INVALID type (e.g. LUA NUMBER)
+		 * thus the rank and therefore ct and ct_usr should get re-evaluated once again.
+		 */
+		ct_usr = rank(&lt) > rank(&rt) ? 3 : 4;
+		ct = rank(&lt) > rank(&rt) ? lt : rt;
+		assert(lua_gettop(L) == 4);
 
         if (rt.pointers) {
             luaL_error(L, "NYI: can't subtract a pointer value");
@@ -2952,7 +3031,8 @@ static void* lookup_global(lua_State* L, int modidx, int nameidx, const char** p
     }
 
     /* leave just the ct_usr on the stack */
-    *ct = *(const struct ctype*) lua_touserdata(L, -1);
+    //*ct = *(const struct ctype*) lua_touserdata(L, -1);
+    memcpy(ct, lua_touserdata(L, -1), sizeof(struct ctype));
     lua_getuservalue(L, -1);
     lua_replace(L, top + 1);
     lua_pop(L, 1);

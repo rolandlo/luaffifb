@@ -92,9 +92,10 @@ static void SetLastError(int err)
 #include "call_x86.h"
 #endif
 
-struct jit_head {
+struct __attribute__((__packed__)) jit_head {
     size_t size;
     int ref;
+    uint8_t padding[4];
     uint8_t jump[JUMP_SIZE];
 };
 
@@ -112,10 +113,10 @@ static void dump_externs(struct jit* jit)
     for (int i = 0, func_ind = 0; (i < LINKTABLE_MAX_NUM-1) ; i++, func_ind++) {
         printf("holder = [%p] func address = [%p]\n", ((char*)ip), *(cfunction*)((char*)ip));
         ip += 2;
-        printf("[%p]:ins(%d) = [%0X]\n", (ip), func_ind, *(ip));
-        printf("[%p]:ins(%d) = [%0X]\n", (ip+1), func_ind, *(ip+1));
-        printf("[%p]:ins(%d) = [%0X]\n", (ip+2), func_ind, *(ip+2));
-        ip+=3;
+        printf("[%p]:ext(%d) = [%0X]\n", (ip), func_ind, *(ip));
+        printf("[%p]:ext(%d) = [%0X]\n", (ip+1), func_ind, *(ip+1));
+        printf("[%p]:ext(%d) = [%0X]\n", (ip+2), func_ind, *(ip+2));
+        ip+=4;
     }
 #endif
     return;
@@ -126,18 +127,26 @@ static void dump_code(struct jit* jit, char * ccode)
 #ifdef ARCH_ARM64
     struct page* page = jit->pages[jit->pagenum-1];
     unsigned char * code = (unsigned char*)(page+1);
-    code += LINKTABLE_MAX_SIZE-20;
-    struct jit_head *jh1 = (struct jit_head *)code;
-    code = (unsigned char*)((struct jit_head *)code+1);
+	printf("JUMP_SIZE = [%zu] LINKTABLE_ELEMENT_SIZE=[%zu], LINKTABLE_MAX_NUM=[%ld]\n",
+			(size_t)JUMP_SIZE, LINKTABLE_MAX_SIZE/LINKTABLE_MAX_NUM, LINKTABLE_MAX_NUM);
+	/* The array extnames has (const char *)0 as the last element, which will not 
+	 * have an entry in code. Thus we have to traverse through LINKTABLE_MAX_NUM -1
+	 * elements or LINKTABLE_MAX_SIZE - JUMP_SIZE bytes to skip the link table */
+    code += LINKTABLE_MAX_SIZE-JUMP_SIZE;
+    struct jit_head *jh1 = (struct jit_head *)code; /* This is the jit_head from compile_globals */
+    code = (unsigned char*)((struct jit_head *)code+1); /* This is the jit_head from compile_globals */
+	/* Incidentally the generated code was less than the available size on first page, and thus
+	 * we did not have to adjust for 2nd page onwards */
     struct jit_head *jh2 = (struct jit_head *)code;
     code = (unsigned char*)((struct jit_head *)code+1);
-    printf("jh->size = %zu\n", jh2->size);
+    printf("jh_size = %zu  jh->size = %zu\n", sizeof(struct jit_head), jh2->size);
     printf("jh->ref = %d\n", jh2->ref);
     printf("jh->func = %p content = %p\n", (void*)jh2->jump, *(cfunction*)((void*)jh2->jump));
+    printf("jmpadr = [%p]\n", (void*)(*(uint64_t *)((char*)(jh2->jump)+0)));
     printf("ins[1] = [%X]\n", *(unsigned int *)((char*)(jh2->jump)+8));
     printf("ins[2] = [%X]\n", *(unsigned int *)((char*)(jh2->jump)+12));
     printf("ins[3] = [%X]\n", *(unsigned int *)((char*)(jh2->jump)+16));
-    printf("computed code = [%p]\n", code);
+    //printf("computed code = [%p]\n", code); CODE STARTS HERE IN THE PAGE
     unsigned int * ip = (unsigned int*)ccode;
     for (int i = 0; (char*)&ip[i] < ((char*)page + page->off); i++) {
         printf("[%p]:ins(%02d) = [%0X]\n", &(ip[i]), i, ip[i]);
@@ -145,6 +154,7 @@ static void dump_code(struct jit* jit, char * ccode)
 #endif
     return;
 }
+
 
 static cfunction compile(struct jit* jit, lua_State* L, cfunction func, int ref)
 {
@@ -165,9 +175,9 @@ static cfunction compile(struct jit* jit, lua_State* L, cfunction func, int ref)
         luaL_error(L, "dasm_link error %s", buf);
     }
 
-    size_t sz = codesz;
     codesz += sizeof(struct jit_head);
     code = (struct jit_head*) reserve_code(jit, L, codesz);
+	//printf("%s:%d reserved code = [%p] jump=[%p] size=[%zu]\n", __FILE__, __LINE__, code, code->jump, codesz);
     code->ref = ref;
     code->size = codesz;
     compile_extern_jump(jit, L, func, code->jump);
@@ -180,6 +190,7 @@ static cfunction compile(struct jit* jit, lua_State* L, cfunction func, int ref)
     }
 
     commit_code(jit, code, codesz);
+	//sys_icache_invalidate(code, codesz);
     //dump_externs(jit);
     //dump_code(jit, (char*)(code+1));
     return (cfunction) (code+1);
@@ -207,17 +218,20 @@ int get_extern(struct jit* jit, uint8_t* addr, int idx, int type)
 		addr += BRANCH_OFF;
 
 		/* see if we can fit the offset in the branch displacement, if not use the
-		 * jump instruction */
+		 * jump instruction placed via compile_extern_jump */
 		off = *(uint8_t**) jmp - addr;
 
 		if (MIN_BRANCH <= off && off <= MAX_BRANCH) {
+			//printf("%s:%d offset = [%x]\n", __FILE__, __LINE__, (int32_t) off);
 			return (int32_t) off;
 		} else {
+			//printf("%s:%d offset = [%x]\n", __FILE__, __LINE__, (int32_t)(jmp + sizeof(uint8_t*) - addr));
 			return (int32_t)(jmp + sizeof(uint8_t*) - addr);
 		}
 	}
 	else {
-		return (uint32_t) jmp;
+		printf("%s:%d THIS CONDITION IS NOT PROVIDED FOR\n", __FILE__, __LINE__);
+		return (uint32_t) (uintptr_t)jmp;
 	}
 }
 
@@ -256,8 +270,12 @@ static void* reserve_code(struct jit* jit, lua_State* L, size_t sz)
         ADDFUNC(NULL, check_float);
         ADDFUNC(NULL, check_uint64);
         ADDFUNC(NULL, check_int64);
+        //ADDFUNC(NULL, check_int16);
+        //ADDFUNC(NULL, check_uint16);
         ADDFUNC(NULL, check_int32);
         ADDFUNC(NULL, check_uint32);
+        //ADDFUNC(NULL, check_int8);
+        //ADDFUNC(NULL, check_uint8);
         ADDFUNC(NULL, check_uintptr);
         ADDFUNC(NULL, check_enum);
         ADDFUNC(NULL, check_typed_pointer);
@@ -317,18 +335,54 @@ static void* reserve_code(struct jit* jit, lua_State* L, size_t sz)
         lua_pop(L, 1);
 
     } else {
+		//printf("%s:%d\n", __FILE__, __LINE__);
         page = jit->pages[jit->pagenum-1];
         EnableWrite(page, page->size);
     }
 
+	//printf("%s:%d page = [%p] page+off = [%p] pagenum=[%zu]\n", __FILE__, __LINE__, page, (char*)(((char*)page)+page->off+sizeof(struct jit_head)), jit->pagenum);
+
     return (uint8_t*) page + page->off;
 }
+
+#ifdef OS_OSX //{
+#include <libkern/OSCacheControl.h>
+#endif //}
+#ifdef OS_LINUX //{
+#ifdef __clang__ //{
+extern "C" void __clear_cache(void *, void*);
+#else //}{
+#include <sys/cachectl.h>
+	/* Explore void __builtin___clear_cache(void *begin, void *end);*/
+#endif //}
+#endif //}
 
 static void commit_code(struct jit* jit, void* code, size_t sz)
 {
     struct page* page = jit->pages[jit->pagenum-1];
     page->off += sz;
+	//mprotect(page, page->size, PROT_NONE);
     EnableExecute(page, page->size);
+#ifdef OS_OSX //{
+	sys_icache_invalidate(page, page->size);
+#else //}{
+#ifdef OS_LINUX //{
+#ifdef __clang__ //{
+	{
+		const char *start = page;
+		const char *end = page + page->size;
+		__clear_cache(const_cast<char *>(Start), const_cast<char *>(End));
+	}
+#else //}{
+	{
+		const char *start = page;
+		const char *end = page + page->size;
+		__builtin___clear_cache(const_cast<char *>(Start), const_cast<char *>(End));
+	}
+#endif //}
+#endif //}
+#endif //}
+
     {
 #if 0
         FILE* out = fopen("\\Hard Disk\\out.bin", "wb");

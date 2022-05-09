@@ -558,7 +558,8 @@ static int copy_submembers(lua_State* L, int to_usr, int from_usr, const struct 
     for (i = 1; i <= sublen; i++) {
         lua_rawgeti(L, from_usr, i);
 
-        ct = *(const struct ctype*) lua_touserdata(L, -1);
+        //ct = *(const struct ctype*) lua_touserdata(L, -1);
+        memcpy(&ct, (const struct ctype*) lua_touserdata(L, -1), sizeof(struct ctype));
         ct.offset += ft->offset;
         lua_getuservalue(L, -1);
 
@@ -572,7 +573,9 @@ static int copy_submembers(lua_State* L, int to_usr, int from_usr, const struct 
     lua_pushnil(L);
     while (lua_next(L, from_usr)) {
         if (lua_type(L, -2) == LUA_TSTRING) {
-            struct ctype ct = *(const struct ctype*) lua_touserdata(L, -1);
+            struct ctype ct;
+            //struct ctype ct = *(const struct ctype*) lua_touserdata(L, -1);
+			memcpy(&ct, (const struct ctype*) lua_touserdata(L, -1), sizeof(struct ctype));
             ct.offset += ft->offset;
             lua_getuservalue(L, -1);
 
@@ -714,7 +717,8 @@ static int calculate_struct_offsets(lua_State* L, struct parser* P, int ct_usr, 
 
         /* get the member type */
         lua_rawgeti(L, tmp_usr, i);
-        mt = *(const struct ctype*) lua_touserdata(L, -1);
+        //mt = *(const struct ctype*) lua_touserdata(L, -1);
+        memcpy(&mt, (const struct ctype*) lua_touserdata(L, -1), sizeof(struct ctype));
         //debug_print_type(&mt);
 
         /* get the member user table */
@@ -1250,7 +1254,7 @@ int parse_type(lua_State* L, struct parser* P, struct ctype* ct)
     struct token tok;
     int top = lua_gettop(L);
 
-    memset(ct, 0, sizeof(*ct));
+    memset(ct, 0, sizeof(struct ctype));
 
     require_token(L, P, &tok);
 
@@ -1284,7 +1288,6 @@ int parse_type(lua_State* L, struct parser* P, struct ctype* ct)
 
     } else if (IS_LITERAL(tok, "struct")) {
         ct->type = STRUCT_TYPE;
-        //printf("%s:%d\n", __FILE__, __LINE__);
         parse_record(L, P, ct);
 
     } else if (IS_LITERAL(tok, "union")) {
@@ -1797,7 +1800,7 @@ static struct ctype* parse_argument2(lua_State* L, struct parser* P, int ct_usr,
             }
 
             ct->is_bitfield = 1;
-            ct->bit_size = (unsigned) bsize;
+            ct->bit_size = (unsigned) bsize; /* Potential overflow */
 
         } else if (tok.type != TOK_TOKEN) {
             /* we've reached the end of the declaration */
@@ -1846,7 +1849,8 @@ static void find_canonical_usr(lua_State* L, int ct_usr, const struct ctype *ct)
 
     /* first canonize the return type */
     lua_rawgeti(L, ct_usr, 0);
-    rt = *(struct ctype*) lua_touserdata(L, -1);
+    //rt = *(struct ctype*) lua_touserdata(L, -1);
+    memcpy(&rt, (struct ctype*) lua_touserdata(L, -1), sizeof(struct ctype));
     lua_getuservalue(L, -1);
     find_canonical_usr(L, -1, &rt);
     push_ctype(L, -1, &rt);
@@ -2187,11 +2191,11 @@ static int parse_root(lua_State* L, struct parser* P)
             struct token name;
             struct parser asmname;
 
+			memset(&type, 0, sizeof(struct ctype));
             memset(&name, 0, sizeof(name));
             memset(&asmname, 0, sizeof(asmname));
 
             put_back(P);
-            //printf("%s:%d\n", __FILE__, __LINE__);
             parse_type(L, P, &type);
 
             for (;;) {
