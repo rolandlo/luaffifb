@@ -1591,7 +1591,6 @@ static int cdata_free(lua_State* L)
 
 static int cdata_set(lua_State* L)
 {
-	//printf("%s:%d\n", __FILE__, __LINE__);
     struct ctype ct;
     cfunction* p = (cfunction*) check_cdata(L, 1, &ct);
     luaL_checktype(L, 2, LUA_TFUNCTION);
@@ -1643,7 +1642,6 @@ static int cdata_call(lua_State* L)
 
     if (!lua_isfunction(L, -1)) {
         lua_pop(L, 1);
-		//printf("%s:%d Calling compilation here in cdata_call\n", __FILE__, __LINE__);
         compile_function(L, *p, -1, &ct);
 
         assert(lua_gettop(L) == top + 2); /* uv, closure */
@@ -2999,7 +2997,6 @@ static void* find_symbol(lua_State* L, int modidx, const char* asmname)
 
     libs = (void**) lua_touserdata(L, modidx);
     num = lua_rawlen(L, modidx) / sizeof(void*);
-	//printf("%s:%d num = [%zu] name = [%s]\n", __FILE__, __LINE__, num, asmname);
 
     for (i = 0; i < num && sym == NULL; i++) {
         if (libs[i]) {
@@ -3060,13 +3057,11 @@ static int cmodule_index(lua_State* L)
     struct ctype ct;
     void *sym = 0;
 
-	//printf("%s:%d # = %d\n", __FILE__, __LINE__, lua_gettop(L));
     lua_settop(L, 2);
 
     /* see if we have already loaded the function */
     lua_getuservalue(L, 1);
     lua_pushvalue(L, 2);
-	//printf("%s:%d L[2] = %s\n", __FILE__, __LINE__, lua_tostring(L, 2));
     lua_rawget(L, -2);
     if (!lua_isnil(L, -1)) {
         return 1;
@@ -3083,9 +3078,7 @@ static int cmodule_index(lua_State* L)
     lua_pop(L, 2);
 
     /* lookup_global pushes the ct_usr */
-	//printf("%s:%d # = %d\n", __FILE__, __LINE__, lua_gettop(L));
     sym = lookup_global(L, 1, 2, &asmname, &ct);
-	//printf("%s:%d # = %d\n", __FILE__, __LINE__, lua_gettop(L));
 
 #if defined _WIN32 && !defined _WIN64 && (defined __i386__ || defined _M_IX86)
     if (!sym && ct.type == FUNCTION_TYPE) {
@@ -3110,7 +3103,6 @@ static int cmodule_index(lua_State* L)
     assert(lua_gettop(L) == 3); /* module, name, ct_usr */
 
     if (ct.type == FUNCTION_TYPE) {
-		//printf("%s:%d Calling compilation here in cmodule_index sym=[%p]\n", __FILE__, __LINE__, sym);
         compile_function(L, (cfunction) sym, -1, &ct);
         assert(lua_gettop(L) == 4); /* module, name, ct_usr, function */
 
@@ -3607,7 +3599,6 @@ static int setup_upvals(lua_State* L)
         } else {
             struct {char ch; va_list v;} av;
             lua_pushfstring(L, "struct {char data[%d] __attribute__((align(%d)));}", (int) sizeof(va_list), (int) ALIGNOF(av) + 1);
-            //printf("%s:%d\n", __FILE__, __LINE__);
             add_typedef(L, lua_tostring(L, -1), "va_list");
             lua_pop(L, 1);
         }

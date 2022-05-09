@@ -155,7 +155,6 @@ static void dump_code(struct jit* jit, char * ccode)
     return;
 }
 
-
 static cfunction compile(struct jit* jit, lua_State* L, cfunction func, int ref)
 {
     struct jit_head* code;
