@@ -634,6 +634,15 @@ assert(c.sprintf(buf, "%g", 5.3) == 3 and ffi.string(buf) == '5.3')
 assert(c.sprintf(buf, "%d", false) == 1 and ffi.string(buf) == '0')
 assert(c.sprintf(buf, "%d%g", false, 6.7) == 4 and ffi.string(buf) == '06.7')
 
+do
+	local i = 'C';
+	local j = ffi.cast("char", 67);
+	local k = ffi.cast("int16_t", 16);
+	local l = ffi.cast("int", 20);
+	local m = ffi.cast("int64_t", 25);
+	assert(c.sprintf(buf, "%s %c %hd %d %lld", i, j, k, l, m) == 12 and ffi.string(buf) == 'C C 16 20 25')
+end
+
 assert(ffi.sizeof('uint32_t[?]', 32) == 32 * 4)
 assert(ffi.sizeof(ffi.new('uint32_t[?]', 32)) == 32 * 4)
 
