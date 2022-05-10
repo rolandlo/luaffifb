@@ -686,7 +686,16 @@ static void get_float(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, i
     }
     else {
         off = reg->off;
+		if (is_double) {
+			reg->off += 8;
+		}
+		else {
+#ifdef OS_OSX
+        reg->off += 4;
+#else
         reg->off += 8;
+#endif
+		}
     }
 
     if (is_double) {
@@ -728,9 +737,17 @@ static void get_complex_float(Dst_DECL, const struct ctype* ct, struct reg_alloc
 			reg->off += 8;
 		} else {
 			| ldr s0, [rbp, #(reg->off)] // s16 is a scratch register
+#ifdef OS_OSX
+			reg->off += 4;
+#else
 			reg->off += 8;
+#endif
 			| ldr s1, [rbp, #(reg->off)] // s16 is a scratch register
+#ifdef OS_OSX
+			reg->off += 4;
+#else
 			reg->off += 8;
+#endif
 		}
     }
 
@@ -794,9 +811,17 @@ static void add_complex_float(Dst_DECL, const struct ctype* ct, struct reg_alloc
             reg->off += 8;
         } else {
             | str s0, [sp, #(reg->off)]
-            reg->off += 8;
+#ifdef OS_OSX
+			reg->off += 4;
+#else
+			reg->off += 8;
+#endif
             | str s1, [sp, #(reg->off)]
-            reg->off += 8;
+#ifdef OS_OSX
+			reg->off += 4;
+#else
+			reg->off += 8;
+#endif
         }
     }
 }

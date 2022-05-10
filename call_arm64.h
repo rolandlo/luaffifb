@@ -2122,7 +2122,16 @@ static void get_float(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, i
     }
     else {
         off = reg->off;
+		if (is_double) {
+			reg->off += 8;
+		}
+		else {
+#ifdef OS_OSX
+        reg->off += 4;
+#else
         reg->off += 8;
+#endif
+		}
     }
 
     if (is_double) {
@@ -2173,10 +2182,18 @@ static void get_complex_float(Dst_DECL, const struct ctype* ct, struct reg_alloc
 		} else {
 			//| ldr s0, [rbp, #(reg->off)] // s16 is a scratch register
 			dasm_put(Dst, 55, (reg->off));
+#ifdef OS_OSX
+			reg->off += 4;
+#else
 			reg->off += 8;
+#endif
 			//| ldr s1, [rbp, #(reg->off)] // s16 is a scratch register
 			dasm_put(Dst, 58, (reg->off));
+#ifdef OS_OSX
+			reg->off += 4;
+#else
 			reg->off += 8;
+#endif
 		}
     }
 
@@ -2252,10 +2269,18 @@ static void add_complex_float(Dst_DECL, const struct ctype* ct, struct reg_alloc
         } else {
             //| str s0, [sp, #(reg->off)]
             dasm_put(Dst, 94, (reg->off));
-            reg->off += 8;
+#ifdef OS_OSX
+			reg->off += 4;
+#else
+			reg->off += 8;
+#endif
             //| str s1, [sp, #(reg->off)]
             dasm_put(Dst, 97, (reg->off));
-            reg->off += 8;
+#ifdef OS_OSX
+			reg->off += 4;
+#else
+			reg->off += 8;
+#endif
         }
     }
 }
