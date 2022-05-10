@@ -96,6 +96,8 @@ static const char* etype_tostring(int type)
 
 static void debug_print_type(const struct ctype* ct)
 {
+	printf("%s:%d is reference %d \n", __FILE__, __LINE__, ct->is_reference);
+	printf("%s:%d is pointers %d \n", __FILE__, __LINE__, ct->pointers);
     printf(" sz %zu %zu %zu align %d ptr %d %d %d type %s%s %d %d %d name %d call %d %d var %d %d %d bit %d %d %d %d jit %d\n",
             /* sz */
             ct->base_size,
@@ -495,6 +497,13 @@ static void calculate_member_position(lua_State* L, struct parser* P, struct cty
             /* unnamed bitfields don't update the struct alignment in X86-64
              * however it seem to have an effect in ARMv8 */
             mt->align_mask = 0;
+#else
+#if defined OS_OSX
+            /* unnamed bitfields don't update the struct alignment in X86-64
+			 * and in ARMv* Apple Mac M1
+             * however it seem to have an effect in ubuntu linux ARMv8 */
+            mt->align_mask = 0;
+#endif
 #endif
         }
 #else
@@ -1304,6 +1313,7 @@ int parse_type(lua_State* L, struct parser* P, struct ctype* ct)
         /* lookup type */
         push_upval(L, &types_key);
         parse_type_name(L, P);
+		//printf("%s:%d type name=[%s]\n", __FILE__, __LINE__, lua_tostring(L, -1));
         lua_rawget(L, -2);
         lua_remove(L, -2);
 
@@ -1313,6 +1323,7 @@ int parse_type(lua_State* L, struct parser* P, struct ctype* ct)
         }
 
         instantiate_typedef(P, ct, (const struct ctype*) lua_touserdata(L, -1));
+		//debug_print_type(ct);
 
         /* we only want the usr tbl from the ctype in the types tbl */
         lua_getuservalue(L, -1);
@@ -1747,7 +1758,9 @@ static struct ctype* parse_argument2(lua_State* L, struct parser* P, int ct_usr,
             /* parse attribute has filled out appropriate fields in type */
 
         } else if (tok.type == TOK_OPEN_PAREN) {
+			//printf("%s:%d PARSE_FUNCTION {\n", __FILE__, __LINE__);
             ct = parse_function(L, P, ct_usr, ct, name, asmname);
+			//printf("%s:%d PARSE_FUNCTION }\n", __FILE__, __LINE__);
             ft_usr = lua_gettop(L);
 
         } else if (tok.type == TOK_OPEN_SQUARE) {
@@ -2200,6 +2213,10 @@ static int parse_root(lua_State* L, struct parser* P)
 
             for (;;) {
                 parse_argument(L, P, -1, &type, &name, &asmname);
+				char nn [100];
+				memset(nn,0,100);
+				strncpy(nn, name.str, name.size);
+				//printf("%s:%d name=[%s]\n", __FILE__, __LINE__, nn);
 
                 if (name.size) {
                     /* global/function declaration */
@@ -2262,6 +2279,7 @@ static int parse_root(lua_State* L, struct parser* P)
 
 int ffi_cdef(lua_State* L)
 {
+	//printf("%s:%d [START CDEF]\n", __FILE__, __LINE__);
     struct parser P;
 
     P.line = 1;
@@ -2271,6 +2289,7 @@ int ffi_cdef(lua_State* L)
     if (parse_root(L, &P) == PRAGMA_POP) {
         luaL_error(L, "pragma pop without an associated push on line %d", P.line);
     }
+	//printf("%s:%d [END CDEF]\n", __FILE__, __LINE__);
 
     return 0;
 }

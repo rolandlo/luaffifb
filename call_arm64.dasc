@@ -467,7 +467,7 @@
 | str x7, [rbp, #-192]
 |.endmacro
 
-#define JUMP_SIZE 20
+#define JUMP_SIZE 24
 #define MIN_BRANCH ((INT32_MIN) >> 6)
 #define MAX_BRANCH ((INT32_MAX) >> 6)
 #define BRANCH_OFF -4
@@ -481,10 +481,12 @@ static void compile_extern_jump(struct jit* jit, lua_State* L, cfunction func, u
      * Note we have to manually set this up since there are commands buffered
      * in the jit state.
      */
+	//printf("%s:%d code = [%p]\n", __FILE__, __LINE__, code);
     *((cfunction*) (&code[0])) = func;
-    *((uint32_t*) (&code[8])) = 0x10FFFFC9U; // ADR X9, #-8
-    *((uint32_t*) (&code[12])) = 0xF940012aU; // LDR X10, [X9]
-    *((uint32_t*) (&code[16])) = 0xD61F0140U; // BR X10
+    *((uint32_t*) (&code[8])) = (uint32_t)0x10FFFFC9U; // ADR X9, #-8
+    *((uint32_t*) (&code[12])) = (uint32_t)0xF940012aU; // LDR X10, [X9]
+    *((uint32_t*) (&code[16])) = (uint32_t)0xD61F0140U; // BR X10
+    *((uint32_t*) (&code[20])) = (uint32_t)0x0; // NULL
     //printf("%s:%d addr = [%p] sizeof(cfunction) = [%zu] function=[%p]\n",
             //__FILE__, __LINE__, &(code[8]), sizeof(cfunction), (*((cfunction*)(&code[0]))));
 }
@@ -577,7 +579,15 @@ struct reg_alloc {
  * We use the same register allocation logic as posix x64 with 2 int regs and 0 float regs
  */
 
-static void get_int(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, int is_int64)
+typedef enum {
+	int8,
+	int16,
+	int32,
+	int64,
+	int128
+} int_type_enum;
+
+static void get_int(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, int_type_enum int_type)
 {
     /* grab the register from the shadow space */
     if (reg->ints < MAX_INT_REGISTERS(ct)) {
@@ -585,7 +595,8 @@ static void get_int(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, int
         | ldr x9, [rbp , #(x)]
         reg->ints++;
     }
-    else if (is_int64) {
+	/*
+	else if (int_type == int64) {
         | ldr x9, [rbp , #(reg->off)] // x9 is a scratch register
         reg->off += 8;
 	}
@@ -593,24 +604,84 @@ static void get_int(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, int
         | ldr w9, [rbp , #(reg->off)]
         reg->off += 8;
     }
+	*/
+	else {
+		switch (int_type) {
+			case int8:
+#ifdef OS_OSX
+				| ldrb w9, [rbp , #(reg->off)]
+				reg->off += 1;
+				break;
+#endif
+			case int16:
+#ifdef OS_OSX
+				| ldrh w9, [rbp , #(reg->off)]
+				reg->off += 2;
+				break;
+#endif
+			case int32:
+				| ldr w9, [rbp , #(reg->off)]
+#ifdef OS_OSX
+				reg->off += 4;
+#else
+				reg->off += 8;
+#endif
+				break;
+			case int64:
+				| ldr x9, [rbp , #(reg->off)] // x9 is a scratch register
+				reg->off += 8;
+				break;
+			case int128:
+			default:
+				fprintf(stderr, "Unsupported data type\n");
+				abort();
+				break;
+		}
+	}
 }
 
-static void add_int(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, int is_int64)
+static void add_int(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, int_type_enum int_type)
 {
     if (reg->ints < MAX_INT_REGISTERS(ct)) {
         | str x0, [sp , #(32 + 8*reg->ints)]
         reg->ints++;
     }
     else {
+#ifndef OS_OSX
         if (reg->off % 8 != 0) {
             reg->off += 8 - (reg->off % 8);
         }
-		if (is_int64 == 1) {
-			| str x0, [sp , #(reg->off)]
-			reg->off += 8;
-		} else {
-			| str w0, [sp , #(reg->off)]
-			reg->off += 8;
+#endif
+		switch (int_type) {
+			case int8:
+#ifdef OS_OSX
+				| strb w0, [sp , #(reg->off)]
+				reg->off += 1;
+				break;
+#endif
+			case int16:
+#ifdef OS_OSX
+				| strh w0, [sp , #(reg->off)]
+				reg->off += 2;
+				break;
+#endif
+			case int32:
+				| str w0, [sp , #(reg->off)]
+#ifdef OS_OSX
+				reg->off += 4;
+#else
+				reg->off += 8;
+#endif
+				break;
+			case int64:
+				| str x0, [sp , #(reg->off)]
+				reg->off += 8;
+				break;
+			case int128:
+			default:
+				fprintf(stderr, "Unsupported data type\n");
+				abort();
+				break;
 		}
     }
 }
@@ -736,8 +807,8 @@ static void add_complex_float(Dst_DECL, const struct ctype* ct, struct reg_alloc
     }
 }
 
-#define add_pointer(jit, ct, reg) add_int(jit, ct, reg, 1)
-#define get_pointer(jit, ct, reg) get_int(jit, ct, reg, 1)
+#define add_pointer(jit, ct, reg) add_int(jit, ct, reg, int64)
+#define get_pointer(jit, ct, reg) get_int(jit, ct, reg, int64)
 
 cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctype* ct)
 {
@@ -841,7 +912,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
                 lua_rawseti(L, -3, ++num_upvals); /* mt */
                 lua_pop(L, 1);
                 | call_rip extern push_cdata, L_ARG, 0, mt
-                get_int(Dst, ct, &reg, 1);
+                get_int(Dst, ct, &reg, int64);
                 | str x9, [x0]
                 break;
 
@@ -889,7 +960,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
 
             case BOOL_TYPE:
                 lua_pop(L, 1);
-                get_int(Dst, ct, &reg, 0);
+                get_int(Dst, ct, &reg, int8);
                 | //movzx ecx, cl
                 | cmp w9, #0
                 | beq >1
@@ -901,7 +972,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
 
             case INT8_TYPE:
                 lua_pop(L, 1);
-                get_int(Dst, ct, &reg, 0);
+                get_int(Dst, ct, &reg, int8);
                 if (mt->is_unsigned) {
 					| ubfm x9, x9, #0, #7
                 } else {
@@ -912,7 +983,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
 
             case INT16_TYPE:
                 lua_pop(L, 1);
-                get_int(Dst, ct, &reg, 0);
+                get_int(Dst, ct, &reg, int16);
                 if (mt->is_unsigned) {
 					| ubfm x9, x9, #0, #15
                 } else {
@@ -924,7 +995,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             case ENUM_TYPE:
             case INT32_TYPE:
                 lua_pop(L, 1);
-                get_int(Dst, ct, &reg, 0);
+                get_int(Dst, ct, &reg, int32);
                 if (mt->is_unsigned) {
                     | call_rw extern push_uint, L_ARG, w9
                 } else {
@@ -1115,7 +1186,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
     const struct ctype* mbr_ct;
     struct jit* Dst = get_jit(L);
     struct reg_alloc reg;
-    void* p;
+    void* p = NULL;
     int top = lua_gettop(L);
     int* perr = &Dst->last_errno;
 
@@ -1128,7 +1199,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
 
     orig_top = lua_gettop(L);
     p = push_cdata(L, ct_usr, ct);
-    *(cfunction*) p = func;
+    memcpy(p,func, ctype_size(L, ct));
 
     nargs = lua_rawlen(L, ct_usr);
 	assert(nargs <= ((unsigned int)(0xFFE))); // <= 4094 s.t. 4095 can fit into imm12
@@ -1137,7 +1208,6 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
         luaL_error(L, "vararg is only allowed with the c calling convention");
     }
 
-    //printf("%s:%d\n", __FILE__, __LINE__);
     | sub sp, sp, #64 // = -64
     | stp x29, x30, [sp, #48] // 16-byte Folded Spill
     | stp EXTRA_REG_2, EXTRA_REG_3, [sp, #32] // 16-byte Folded Spill
@@ -1209,29 +1279,36 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
                 | mov32 w9, lua_upvalueindex(num_upvals)
                 | sxtw x9, w9
                 | call_riwp, extern check_enum, L_ARG, i, w9, mbr_ct
-                add_int(Dst, ct, &reg, 0);
+                add_int(Dst, ct, &reg, int32);
                 break;
 
             case INT8_TYPE:
-                | call_ri extern check_int32, L_ARG, i
+				//| call_ri extern check_int32, L_ARG, i
                 if (mbr_ct->is_unsigned) {
+					//| call_ri extern check_uint8, L_ARG, i
+					| call_ri extern check_uint32, L_ARG, i
                     | ubfm x0, x0, #0, #7
                 } else {
+					//| call_ri extern check_int8, L_ARG, i
+					| call_ri extern check_int32, L_ARG, i
                     | sbfm x0, x0, #0, #7
-                    //| sxtb x0, x0
                 }
-                add_int(Dst, ct, &reg, 0);
+                add_int(Dst, ct, &reg, int8);
                 lua_pop(L, 1);
                 break;
 
             case INT16_TYPE:
-                | call_ri extern check_int32, L_ARG, i
+				//| call_ri extern check_int32, L_ARG, i
                 if (mbr_ct->is_unsigned) {
+					//| call_ri extern check_uint16, L_ARG, i
+					| call_ri extern check_uint32, L_ARG, i
                     | ubfm x0, x0, #0, #15
                 } else {
+					//| call_ri extern check_int16, L_ARG, i
+					| call_ri extern check_int32, L_ARG, i
                     | sbfm x0, x0, #0, #15
                 }
-                add_int(Dst, ct, &reg, 0);
+                add_int(Dst, ct, &reg, int16);
                 lua_pop(L, 1);
                 break;
 
@@ -1242,7 +1319,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
                 | mov b0, #1
                 | 1:
                 | ubfm x0, x0, #0, #7
-                add_int(Dst, ct, &reg, 0);
+                add_int(Dst, ct, &reg, int8);
                 lua_pop(L, 1);
                 break;
 
@@ -1252,7 +1329,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
                 } else {
                     | call_ri extern check_int32, L_ARG, i
                 }
-                add_int(Dst, ct, &reg, 0);
+                add_int(Dst, ct, &reg, int32);
                 lua_pop(L, 1);
                 break;
 
@@ -1268,7 +1345,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
                 } else {
                     | call_ri extern check_int64, L_ARG, i
                 }
-                add_int(Dst, ct, &reg, 1);
+                add_int(Dst, ct, &reg, int64);
                 lua_pop(L, 1);
                 break;
 
@@ -1380,6 +1457,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
 
     | add sp, sp, #(REGISTER_STACK_SPACE(ct))
 
+	//printf("%s:%d compiling call \n", __FILE__, __LINE__);
     | bl extern FUNCTION
 	|
     | add sp, sp, TOP, lsl #4 // Free up the stack space reserved for FUNCTION call

@@ -19,7 +19,7 @@
 #endif
 
 //|.actionlist build_actionlist
-static const unsigned int build_actionlist[1345] = {
+static const unsigned int build_actionlist[1371] = {
 0xF84002A9,
 0x000F0003,
 0x00000000,
@@ -29,14 +29,32 @@ static const unsigned int build_actionlist[1345] = {
 0xB84002A9,
 0x000F0002,
 0x00000000,
-0xF80003E0,
+0x384002A9,
+0x000F0000,
+0x00000000,
+0x784002A9,
+0x000F0001,
+0x00000000,
+0xB84002A9,
+0x000F0002,
+0x00000000,
+0xF84002A9,
 0x000F0003,
 0x00000000,
 0xF80003E0,
 0x000F0003,
+0x00000000,
+0x380003E0,
+0x000F0000,
+0x00000000,
+0x780003E0,
+0x000F0001,
 0x00000000,
 0xB80003E0,
 0x000F0002,
+0x00000000,
+0xF80003E0,
+0x000F0003,
 0x00000000,
 0xFC4002A0,
 0x000F0003,
@@ -722,20 +740,28 @@ static const unsigned int build_actionlist[1345] = {
 0x000A0205,
 0xAA1303E0,
 0x94000000,
-0x0003000C,
-0x00000000,
+0x0003000B,
 0xD3401C00,
-0x00000000,
-0x93401C00,
 0x00000000,
 0x52800001,
 0x000A0205,
 0xAA1303E0,
 0x94000000,
 0x0003000C,
+0x93401C00,
 0x00000000,
+0x52800001,
+0x000A0205,
+0xAA1303E0,
+0x94000000,
+0x0003000B,
 0xD3403C00,
 0x00000000,
+0x52800001,
+0x000A0205,
+0xAA1303E0,
+0x94000000,
+0x0003000C,
 0x93403C00,
 0x00000000,
 0x52800001,
@@ -1860,7 +1886,7 @@ static const char *const extnames[] = {
 //| str x7, [rbp, #-192]
 //|.endmacro
 
-#define JUMP_SIZE 20
+#define JUMP_SIZE 24
 #define MIN_BRANCH ((INT32_MIN) >> 6)
 #define MAX_BRANCH ((INT32_MAX) >> 6)
 #define BRANCH_OFF -4
@@ -1874,10 +1900,12 @@ static void compile_extern_jump(struct jit* jit, lua_State* L, cfunction func, u
      * Note we have to manually set this up since there are commands buffered
      * in the jit state.
      */
+	//printf("%s:%d code = [%p]\n", __FILE__, __LINE__, code);
     *((cfunction*) (&code[0])) = func;
-    *((uint32_t*) (&code[8])) = 0x10FFFFC9U; // ADR X9, #-8
-    *((uint32_t*) (&code[12])) = 0xF940012aU; // LDR X10, [X9]
-    *((uint32_t*) (&code[16])) = 0xD61F0140U; // BR X10
+    *((uint32_t*) (&code[8])) = (uint32_t)0x10FFFFC9U; // ADR X9, #-8
+    *((uint32_t*) (&code[12])) = (uint32_t)0xF940012aU; // LDR X10, [X9]
+    *((uint32_t*) (&code[16])) = (uint32_t)0xD61F0140U; // BR X10
+    *((uint32_t*) (&code[20])) = (uint32_t)0x0; // NULL
     //printf("%s:%d addr = [%p] sizeof(cfunction) = [%zu] function=[%p]\n",
             //__FILE__, __LINE__, &(code[8]), sizeof(cfunction), (*((cfunction*)(&code[0]))));
 }
@@ -1970,7 +1998,15 @@ struct reg_alloc {
  * We use the same register allocation logic as posix x64 with 2 int regs and 0 float regs
  */
 
-static void get_int(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, int is_int64)
+typedef enum {
+	int8,
+	int16,
+	int32,
+	int64,
+	int128
+} int_type_enum;
+
+static void get_int(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, int_type_enum int_type)
 {
     /* grab the register from the shadow space */
     if (reg->ints < MAX_INT_REGISTERS(ct)) {
@@ -1979,7 +2015,8 @@ static void get_int(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, int
         dasm_put(Dst, 0, (x));
         reg->ints++;
     }
-    else if (is_int64) {
+	/*
+	else if (int_type == int64) {
         //| ldr x9, [rbp , #(reg->off)] // x9 is a scratch register
         dasm_put(Dst, 3, (reg->off));
         reg->off += 8;
@@ -1989,27 +2026,93 @@ static void get_int(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, int
         dasm_put(Dst, 6, (reg->off));
         reg->off += 8;
     }
+	*/
+	else {
+		switch (int_type) {
+			case int8:
+#ifdef OS_OSX
+				//| ldrb w9, [rbp , #(reg->off)]
+				dasm_put(Dst, 9, (reg->off));
+				reg->off += 1;
+				break;
+#endif
+			case int16:
+#ifdef OS_OSX
+				//| ldrh w9, [rbp , #(reg->off)]
+				dasm_put(Dst, 12, (reg->off));
+				reg->off += 2;
+				break;
+#endif
+			case int32:
+				//| ldr w9, [rbp , #(reg->off)]
+				dasm_put(Dst, 15, (reg->off));
+#ifdef OS_OSX
+				reg->off += 4;
+#else
+				reg->off += 8;
+#endif
+				break;
+			case int64:
+				//| ldr x9, [rbp , #(reg->off)] // x9 is a scratch register
+				dasm_put(Dst, 18, (reg->off));
+				reg->off += 8;
+				break;
+			case int128:
+			default:
+				fprintf(stderr, "Unsupported data type\n");
+				abort();
+				break;
+		}
+	}
 }
 
-static void add_int(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, int is_int64)
+static void add_int(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, int_type_enum int_type)
 {
     if (reg->ints < MAX_INT_REGISTERS(ct)) {
         //| str x0, [sp , #(32 + 8*reg->ints)]
-        dasm_put(Dst, 9, (32 + 8*reg->ints));
+        dasm_put(Dst, 21, (32 + 8*reg->ints));
         reg->ints++;
     }
     else {
+#ifndef OS_OSX
         if (reg->off % 8 != 0) {
             reg->off += 8 - (reg->off % 8);
         }
-		if (is_int64 == 1) {
-			//| str x0, [sp , #(reg->off)]
-			dasm_put(Dst, 12, (reg->off));
-			reg->off += 8;
-		} else {
-			//| str w0, [sp , #(reg->off)]
-			dasm_put(Dst, 15, (reg->off));
-			reg->off += 8;
+#endif
+		switch (int_type) {
+			case int8:
+#ifdef OS_OSX
+				//| strb w0, [sp , #(reg->off)]
+				dasm_put(Dst, 24, (reg->off));
+				reg->off += 1;
+				break;
+#endif
+			case int16:
+#ifdef OS_OSX
+				//| strh w0, [sp , #(reg->off)]
+				dasm_put(Dst, 27, (reg->off));
+				reg->off += 2;
+				break;
+#endif
+			case int32:
+				//| str w0, [sp , #(reg->off)]
+				dasm_put(Dst, 30, (reg->off));
+#ifdef OS_OSX
+				reg->off += 4;
+#else
+				reg->off += 8;
+#endif
+				break;
+			case int64:
+				//| str x0, [sp , #(reg->off)]
+				dasm_put(Dst, 33, (reg->off));
+				reg->off += 8;
+				break;
+			case int128:
+			default:
+				fprintf(stderr, "Unsupported data type\n");
+				abort();
+				break;
 		}
     }
 }
@@ -2029,11 +2132,11 @@ static void get_float(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, i
 
     if (is_double) {
         //| ldr d0, [rbp, #off]
-        dasm_put(Dst, 18, off);
+        dasm_put(Dst, 36, off);
     } else {
 		//| ldr s16, [rbp, #off] // s16 is a scratch register
 		//| fcvt d0, s16
-		dasm_put(Dst, 21, off);
+		dasm_put(Dst, 39, off);
     }
 }
 
@@ -2044,20 +2147,20 @@ static void get_complex_float(Dst_DECL, const struct ctype* ct, struct reg_alloc
 		if (is_double) {
 			off = -32 - 16*reg->floats;
 			//| ldr d0, [rbp, #off]
-			dasm_put(Dst, 25, off);
+			dasm_put(Dst, 43, off);
 			reg->floats++;
 			off = -32 - 16*reg->floats;
 			//| ldr d1, [rbp, #off]
-			dasm_put(Dst, 28, off);
+			dasm_put(Dst, 46, off);
 			reg->floats++;
 		} else {
 			off = -32 - 16*reg->floats;
 			//| ldr s0, [rbp, #off] // s16 is a scratch register
-			dasm_put(Dst, 31, off);
+			dasm_put(Dst, 49, off);
 			reg->floats++;
 			off = -32 - 16*reg->floats;
 			//| ldr s1, [rbp, #off] // s16 is a scratch register
-			dasm_put(Dst, 34, off);
+			dasm_put(Dst, 52, off);
 			reg->floats++;
 		}
     }
@@ -2067,17 +2170,17 @@ static void get_complex_float(Dst_DECL, const struct ctype* ct, struct reg_alloc
 		}
 		if (is_double) {
 			//| ldr d0, [rbp, #(reg->off)]
-			dasm_put(Dst, 37, (reg->off));
+			dasm_put(Dst, 55, (reg->off));
 			reg->off += 8;
 			//| ldr d1, [rbp, #(reg->off)]
-			dasm_put(Dst, 40, (reg->off));
+			dasm_put(Dst, 58, (reg->off));
 			reg->off += 8;
 		} else {
 			//| ldr s0, [rbp, #(reg->off)] // s16 is a scratch register
-			dasm_put(Dst, 43, (reg->off));
+			dasm_put(Dst, 61, (reg->off));
 			reg->off += 8;
 			//| ldr s1, [rbp, #(reg->off)] // s16 is a scratch register
-			dasm_put(Dst, 46, (reg->off));
+			dasm_put(Dst, 64, (reg->off));
 			reg->off += 8;
 		}
     }
@@ -2089,24 +2192,24 @@ static void add_float(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, i
     if (reg->floats < MAX_FLOAT_REGISTERS(ct)) {
         if (is_double) {
             //| str d0, [sp , #(32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats))]
-            dasm_put(Dst, 49, (32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats)));
+            dasm_put(Dst, 67, (32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats)));
         } else {
             //| fcvt s0, d0 // This is necessary because in lua float is also
-            dasm_put(Dst, 52);
+            dasm_put(Dst, 70);
                           // handled as doube
             //| str s0, [sp, #(32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats))]
-            dasm_put(Dst, 54, (32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats)));
+            dasm_put(Dst, 72, (32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats)));
         }
         reg->floats++;
     }
     else if (is_double) {
         //| str d0, [sp, #(reg->off)]
-        dasm_put(Dst, 57, (reg->off));
+        dasm_put(Dst, 75, (reg->off));
         reg->off += 8;
     } else {
         //| fcvt s0, d0
         //| str s0, [sp, #(reg->off)]
-        dasm_put(Dst, 60, (reg->off));
+        dasm_put(Dst, 78, (reg->off));
         reg->off += 8;
     }
 }
@@ -2117,17 +2220,17 @@ static void add_complex_float(Dst_DECL, const struct ctype* ct, struct reg_alloc
     if (reg->floats < (MAX_FLOAT_REGISTERS(ct)-1)) {
         if (is_double) {
             //| str d0, [sp , #(32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats))]
-            dasm_put(Dst, 64, (32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats)));
+            dasm_put(Dst, 82, (32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats)));
             reg->floats++;
             //| str d1, [sp , #(32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats))]
-            dasm_put(Dst, 67, (32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats)));
+            dasm_put(Dst, 85, (32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats)));
             reg->floats++;
         } else {
             //| str s0, [sp, #(32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats))]
-            dasm_put(Dst, 70, (32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats)));
+            dasm_put(Dst, 88, (32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats)));
             reg->floats++;
             //| str s1, [sp, #(32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats))]
-            dasm_put(Dst, 73, (32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats)));
+            dasm_put(Dst, 91, (32 + 8*(MAX_INT_REGISTERS(ct) + reg->floats)));
             reg->floats++;
         }
         if (reg->floats > (MAX_FLOAT_REGISTERS(ct)-1)) {
@@ -2142,24 +2245,24 @@ static void add_complex_float(Dst_DECL, const struct ctype* ct, struct reg_alloc
         //printf("%s:%d floats = [%d]\n", __FILE__, __LINE__, reg->floats);
         if (is_double) {
             //| str d0, [sp, #(reg->off)]
-            dasm_put(Dst, 76, (reg->off));
+            dasm_put(Dst, 94, (reg->off));
             reg->off += 8;
             //| str d1, [sp, #(reg->off)]
-            dasm_put(Dst, 79, (reg->off));
+            dasm_put(Dst, 97, (reg->off));
             reg->off += 8;
         } else {
             //| str s0, [sp, #(reg->off)]
-            dasm_put(Dst, 82, (reg->off));
+            dasm_put(Dst, 100, (reg->off));
             reg->off += 8;
             //| str s1, [sp, #(reg->off)]
-            dasm_put(Dst, 85, (reg->off));
+            dasm_put(Dst, 103, (reg->off));
             reg->off += 8;
         }
     }
 }
 
-#define add_pointer(jit, ct, reg) add_int(jit, ct, reg, 1)
-#define get_pointer(jit, ct, reg) get_int(jit, ct, reg, 1)
+#define add_pointer(jit, ct, reg) add_int(jit, ct, reg, int64)
+#define get_pointer(jit, ct, reg) get_int(jit, ct, reg, int64)
 
 cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctype* ct)
 {
@@ -2215,22 +2318,22 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
 	//| //
 	//| add rbp, sp, #16
     //|
-    dasm_put(Dst, 88);
+    dasm_put(Dst, 106);
 
     //| // stack -64 (mod 16) (L_ARG, rbp, rip)
     //| // 16 for return vars, 32 for local calls, rest to save registers
     //| sub sp, sp, #(16 + 32 + REGISTER_STACK_SPACE(ct))
     //| save_registers
-    dasm_put(Dst, 95, (16 + 32 + REGISTER_STACK_SPACE(ct)));
+    dasm_put(Dst, 113, (16 + 32 + REGISTER_STACK_SPACE(ct)));
 
     //| mov64 L_ARG, L
-    dasm_put(Dst, 114, (ZERO_TO_FIFTEEN_OF_64(L)), (SIXTEEN_TO_THIRTYONE_OF_64(L)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(L)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(L)));
+    dasm_put(Dst, 132, (ZERO_TO_FIFTEEN_OF_64(L)), (SIXTEEN_TO_THIRTYONE_OF_64(L)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(L)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(L)));
 
     /* get the upval table */
 	//| mov32 w9, LUA_REGISTRYINDEX
 	//| mov32 w10, ref
     //| call_rww extern lua_rawgeti, L_ARG, w9, w10
-    dasm_put(Dst, 123, (ZERO_TO_FIFTEEN_OF_64(LUA_REGISTRYINDEX)), (SIXTEEN_TO_THIRTYONE_OF_64(LUA_REGISTRYINDEX)), (ZERO_TO_FIFTEEN_OF_64(ref)), (SIXTEEN_TO_THIRTYONE_OF_64(ref)));
+    dasm_put(Dst, 141, (ZERO_TO_FIFTEEN_OF_64(LUA_REGISTRYINDEX)), (SIXTEEN_TO_THIRTYONE_OF_64(LUA_REGISTRYINDEX)), (ZERO_TO_FIFTEEN_OF_64(ref)), (SIXTEEN_TO_THIRTYONE_OF_64(ref)));
 
     /* get the lua function */
     lua_pushvalue(L, fidx);
@@ -2238,7 +2341,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
     assert(num_upvals == CALLBACK_FUNC_USR_IDX);
     //| mov32 w9, -1
     //| call_rwi extern lua_rawgeti, L_ARG, w9, num_upvals
-    dasm_put(Dst, 137, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (num_upvals));
+    dasm_put(Dst, 155, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (num_upvals));
 
     (void) hidden_arg_off;
 
@@ -2257,12 +2360,12 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             //| call_rwi extern lua_rawgeti, L_ARG, w9, num_upvals-1
             //| mov32 w9, -1
             //| call_rwp extern push_cdata, L_ARG, w9, mt
-            dasm_put(Dst, 148, (ZERO_TO_FIFTEEN_OF_64(-i-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-i-1)), (num_upvals-1), (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64(mt)), (SIXTEEN_TO_THIRTYONE_OF_64(mt)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mt)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mt)));
+            dasm_put(Dst, 166, (ZERO_TO_FIFTEEN_OF_64(-i-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-i-1)), (num_upvals-1), (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64(mt)), (SIXTEEN_TO_THIRTYONE_OF_64(mt)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mt)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mt)));
             get_pointer(Dst, ct, &reg);
             //| str x9, [x0]
             //| mov32 w9, -2
             //| call_rw, extern lua_remove, L_ARG, w9
-            dasm_put(Dst, 175, (ZERO_TO_FIFTEEN_OF_64(-2)), (SIXTEEN_TO_THIRTYONE_OF_64(-2)));
+            dasm_put(Dst, 193, (ZERO_TO_FIFTEEN_OF_64(-2)), (SIXTEEN_TO_THIRTYONE_OF_64(-2)));
         } else {
             switch (mt->type) {
             case INT64_TYPE:
@@ -2270,10 +2373,10 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
                 lua_rawseti(L, -3, ++num_upvals); /* mt */
                 lua_pop(L, 1);
                 //| call_rip extern push_cdata, L_ARG, 0, mt
-                dasm_put(Dst, 185, (ZERO_TO_FIFTEEN_OF_64(mt)), (SIXTEEN_TO_THIRTYONE_OF_64(mt)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mt)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mt)));
-                get_int(Dst, ct, &reg, 1);
+                dasm_put(Dst, 203, (ZERO_TO_FIFTEEN_OF_64(mt)), (SIXTEEN_TO_THIRTYONE_OF_64(mt)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mt)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mt)));
+                get_int(Dst, ct, &reg, int64);
                 //| str x9, [x0]
-                dasm_put(Dst, 198);
+                dasm_put(Dst, 216);
                 break;
 
             case INTPTR_TYPE:
@@ -2281,31 +2384,31 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
                 lua_rawseti(L, -3, ++num_upvals); /* mt */
                 lua_pop(L, 1);
                 //| call_rip extern push_cdata, L_ARG, 0, mt
-                dasm_put(Dst, 200, (ZERO_TO_FIFTEEN_OF_64(mt)), (SIXTEEN_TO_THIRTYONE_OF_64(mt)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mt)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mt)));
+                dasm_put(Dst, 218, (ZERO_TO_FIFTEEN_OF_64(mt)), (SIXTEEN_TO_THIRTYONE_OF_64(mt)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mt)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mt)));
                 get_pointer(Dst, ct, &reg);
                 //| str x9, [x0]
-                dasm_put(Dst, 213);
+                dasm_put(Dst, 231);
                 break;
 
             case COMPLEX_FLOAT_TYPE:
                 lua_pop(L, 1);
                 /* complex floats are two floats packed into a double */
                 //| call_rip extern push_cdata, L_ARG, 0, mt
-                dasm_put(Dst, 215, (ZERO_TO_FIFTEEN_OF_64(mt)), (SIXTEEN_TO_THIRTYONE_OF_64(mt)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mt)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mt)));
+                dasm_put(Dst, 233, (ZERO_TO_FIFTEEN_OF_64(mt)), (SIXTEEN_TO_THIRTYONE_OF_64(mt)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mt)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mt)));
                 get_complex_float(Dst, ct, &reg, 0);
                 //| str s0, [x0]
                 //| str s1, [x0, #4]
-                dasm_put(Dst, 228);
+                dasm_put(Dst, 246);
                 break;
 
             case COMPLEX_DOUBLE_TYPE:
                 lua_pop(L, 1);
                 //| call_rip extern push_cdata, L_ARG, 0, mt
-                dasm_put(Dst, 231, (ZERO_TO_FIFTEEN_OF_64(mt)), (SIXTEEN_TO_THIRTYONE_OF_64(mt)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mt)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mt)));
+                dasm_put(Dst, 249, (ZERO_TO_FIFTEEN_OF_64(mt)), (SIXTEEN_TO_THIRTYONE_OF_64(mt)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mt)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mt)));
                 get_complex_float(Dst, ct, &reg, 1);
                 //| str d0, [x0]
                 //| str d1, [x0, #8]
-                dasm_put(Dst, 244);
+                dasm_put(Dst, 262);
                 break;
 
             case FLOAT_TYPE:
@@ -2314,7 +2417,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
                 //| // for 64bit xmm0 is already set
                 //| mov x0, L_ARG
                 //| bl extern lua_pushnumber
-                dasm_put(Dst, 247);
+                dasm_put(Dst, 265);
                 break;
 
             case DOUBLE_TYPE:
@@ -2323,12 +2426,12 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
                 //| // for 64bit xmm0 is already set
                 //| mov x0, L_ARG
                 //| bl extern lua_pushnumber
-                dasm_put(Dst, 251);
+                dasm_put(Dst, 269);
                 break;
 
             case BOOL_TYPE:
                 lua_pop(L, 1);
-                get_int(Dst, ct, &reg, 0);
+                get_int(Dst, ct, &reg, int8);
                 //| //movzx ecx, cl
                 //| cmp w9, #0
                 //| beq >1
@@ -2336,47 +2439,47 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
                 //| 1:
                 //| ubfm x9, x9, #0, #7
                 //| call_rr extern lua_pushboolean, L_ARG, x9
-                dasm_put(Dst, 255);
+                dasm_put(Dst, 273);
                 break;
 
             case INT8_TYPE:
                 lua_pop(L, 1);
-                get_int(Dst, ct, &reg, 0);
+                get_int(Dst, ct, &reg, int8);
                 if (mt->is_unsigned) {
 					//| ubfm x9, x9, #0, #7
-					dasm_put(Dst, 266);
+					dasm_put(Dst, 284);
                 } else {
 					//| sbfm x9, x9, #0, #7
-					dasm_put(Dst, 268);
+					dasm_put(Dst, 286);
                 }
                 //| call_rr extern push_int, L_ARG, x9
-                dasm_put(Dst, 270);
+                dasm_put(Dst, 288);
                 break;
 
             case INT16_TYPE:
                 lua_pop(L, 1);
-                get_int(Dst, ct, &reg, 0);
+                get_int(Dst, ct, &reg, int16);
                 if (mt->is_unsigned) {
 					//| ubfm x9, x9, #0, #15
-					dasm_put(Dst, 275);
+					dasm_put(Dst, 293);
                 } else {
 					//| sbfm x9, x9, #0, #15
-					dasm_put(Dst, 277);
+					dasm_put(Dst, 295);
                 }
                 //| call_rr extern push_int, L_ARG, x9
-                dasm_put(Dst, 279);
+                dasm_put(Dst, 297);
                 break;
 
             case ENUM_TYPE:
             case INT32_TYPE:
                 lua_pop(L, 1);
-                get_int(Dst, ct, &reg, 0);
+                get_int(Dst, ct, &reg, int32);
                 if (mt->is_unsigned) {
                     //| call_rw extern push_uint, L_ARG, w9
-                    dasm_put(Dst, 284);
+                    dasm_put(Dst, 302);
                 } else {
                     //| call_rw extern push_int, L_ARG, w9
-                    dasm_put(Dst, 289);
+                    dasm_put(Dst, 307);
                 }
                 break;
 
@@ -2390,7 +2493,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
     mt = (const struct ctype*) lua_touserdata(L, -1);
 
     //| call_riip extern lua_callk, L_ARG, nargs, ((mt->pointers || mt->is_reference || mt->type != VOID_TYPE) ? 1 : 0), 0
-    dasm_put(Dst, 294, (ZERO_TO_FIFTEEN_OF_64((0))), (SIXTEEN_TO_THIRTYONE_OF_64((0))), (THIRTYTWO_TO_FORTYSEVEN_OF_64((0))), (FORTYEIGHT_TO_SIXTYTHREE_OF_64((0))), (((mt->pointers || mt->is_reference || mt->type != VOID_TYPE) ? 1 : 0)), (nargs));
+    dasm_put(Dst, 312, (ZERO_TO_FIFTEEN_OF_64((0))), (SIXTEEN_TO_THIRTYONE_OF_64((0))), (THIRTYTWO_TO_FORTYSEVEN_OF_64((0))), (FORTYEIGHT_TO_SIXTYTHREE_OF_64((0))), (((mt->pointers || mt->is_reference || mt->type != VOID_TYPE) ? 1 : 0)), (nargs));
 
     // Unpack the return argument if not "void", also clean-up the lua stack
     // to remove the return argument and bind table. Use lua_settop rather
@@ -2408,7 +2511,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
         //| mov32 w9, -4
         //| call_rw extern lua_settop, L_ARG, w9
         //| ldr x0, [sp, #32]
-        dasm_put(Dst, 310, (ZERO_TO_FIFTEEN_OF_64(-2)), (SIXTEEN_TO_THIRTYONE_OF_64(-2)), (num_upvals-1), (ZERO_TO_FIFTEEN_OF_64(-2)), (SIXTEEN_TO_THIRTYONE_OF_64(-2)), (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64((mt))), (SIXTEEN_TO_THIRTYONE_OF_64((mt))), (THIRTYTWO_TO_FORTYSEVEN_OF_64((mt))), (FORTYEIGHT_TO_SIXTYTHREE_OF_64((mt))), (ZERO_TO_FIFTEEN_OF_64(-4)), (SIXTEEN_TO_THIRTYONE_OF_64(-4)));
+        dasm_put(Dst, 328, (ZERO_TO_FIFTEEN_OF_64(-2)), (SIXTEEN_TO_THIRTYONE_OF_64(-2)), (num_upvals-1), (ZERO_TO_FIFTEEN_OF_64(-2)), (SIXTEEN_TO_THIRTYONE_OF_64(-2)), (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64((mt))), (SIXTEEN_TO_THIRTYONE_OF_64((mt))), (THIRTYTWO_TO_FORTYSEVEN_OF_64((mt))), (FORTYEIGHT_TO_SIXTYTHREE_OF_64((mt))), (ZERO_TO_FIFTEEN_OF_64(-4)), (SIXTEEN_TO_THIRTYONE_OF_64(-4)));
 
     } else {
         switch (mt->type) {
@@ -2425,14 +2528,14 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             //| mov32 w9, -4
             //| call_rw extern lua_settop, L_ARG, w9
 			//| ldr w0, [sp, #32]
-			dasm_put(Dst, 352, (ZERO_TO_FIFTEEN_OF_64(-2)), (SIXTEEN_TO_THIRTYONE_OF_64(-2)), (num_upvals-1), (ZERO_TO_FIFTEEN_OF_64(-2)), (SIXTEEN_TO_THIRTYONE_OF_64(-2)), (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64((mt))), (SIXTEEN_TO_THIRTYONE_OF_64((mt))), (THIRTYTWO_TO_FORTYSEVEN_OF_64((mt))), (FORTYEIGHT_TO_SIXTYTHREE_OF_64((mt))), (ZERO_TO_FIFTEEN_OF_64(-4)), (SIXTEEN_TO_THIRTYONE_OF_64(-4)));
+			dasm_put(Dst, 370, (ZERO_TO_FIFTEEN_OF_64(-2)), (SIXTEEN_TO_THIRTYONE_OF_64(-2)), (num_upvals-1), (ZERO_TO_FIFTEEN_OF_64(-2)), (SIXTEEN_TO_THIRTYONE_OF_64(-2)), (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64((mt))), (SIXTEEN_TO_THIRTYONE_OF_64((mt))), (THIRTYTWO_TO_FORTYSEVEN_OF_64((mt))), (FORTYEIGHT_TO_SIXTYTHREE_OF_64((mt))), (ZERO_TO_FIFTEEN_OF_64(-4)), (SIXTEEN_TO_THIRTYONE_OF_64(-4)));
             break;
 
         case VOID_TYPE:
             lua_pop(L, 1);
             //| mov32 w9, -2
             //| call_rw extern lua_settop, L_ARG, w9
-            dasm_put(Dst, 394, (ZERO_TO_FIFTEEN_OF_64(-2)), (SIXTEEN_TO_THIRTYONE_OF_64(-2)));
+            dasm_put(Dst, 412, (ZERO_TO_FIFTEEN_OF_64(-2)), (SIXTEEN_TO_THIRTYONE_OF_64(-2)));
             break;
 
         case BOOL_TYPE:
@@ -2443,17 +2546,17 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             if (mt->is_unsigned) {
                 //| mov32 w9, -1
                 //| call_rw extern check_uint32, L_ARG, w9
-                dasm_put(Dst, 403, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)));
+                dasm_put(Dst, 421, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)));
             } else {
                 //| mov32 w9, -1
                 //| call_rw extern check_int32, L_ARG, w9
-                dasm_put(Dst, 412, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)));
+                dasm_put(Dst, 430, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)));
             }
 			//| str w0, [sp, #32]
             //| mov32 w9, -3
             //| call_rw extern lua_settop, L_ARG, w9
 			//| ldr w0, [sp, #32]
-			dasm_put(Dst, 421, (ZERO_TO_FIFTEEN_OF_64(-3)), (SIXTEEN_TO_THIRTYONE_OF_64(-3)));
+			dasm_put(Dst, 439, (ZERO_TO_FIFTEEN_OF_64(-3)), (SIXTEEN_TO_THIRTYONE_OF_64(-3)));
             break;
 
         case INT64_TYPE:
@@ -2462,18 +2565,18 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             if (mt->is_unsigned) {
                 //| mov32 w9, -1
                 //| call_rw extern check_uint64, L_ARG, w9
-                dasm_put(Dst, 432, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)));
+                dasm_put(Dst, 450, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)));
             } else {
                 //| mov32 w9, -1
                 //| call_rw extern check_int64, L_ARG, w9
-                dasm_put(Dst, 441, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)));
+                dasm_put(Dst, 459, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)));
             }
 
 			//| str x0, [sp, #32]
             //| mov32 w9, -4
 			//| call_rw extern lua_settop, L_ARG, w9
 			//| ldr x0, [sp, #32]
-			dasm_put(Dst, 450, (ZERO_TO_FIFTEEN_OF_64(-4)), (SIXTEEN_TO_THIRTYONE_OF_64(-4)));
+			dasm_put(Dst, 468, (ZERO_TO_FIFTEEN_OF_64(-4)), (SIXTEEN_TO_THIRTYONE_OF_64(-4)));
             break;
 
         case INTPTR_TYPE:
@@ -2484,7 +2587,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             //| mov32 w9, -3
             //| call_rw extern lua_settop, L_ARG, w9
 			//| ldr x0, [sp, #32]
-			dasm_put(Dst, 461, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64(-3)), (SIXTEEN_TO_THIRTYONE_OF_64(-3)));
+			dasm_put(Dst, 479, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64(-3)), (SIXTEEN_TO_THIRTYONE_OF_64(-3)));
             break;
 
         case FLOAT_TYPE:
@@ -2496,7 +2599,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             //| call_rw extern lua_settop, L_ARG, w9
 			//| ldr d1, [sp, #32]
 			//| fcvt s0, d1
-			dasm_put(Dst, 480, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64(-3)), (SIXTEEN_TO_THIRTYONE_OF_64(-3)));
+			dasm_put(Dst, 498, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64(-3)), (SIXTEEN_TO_THIRTYONE_OF_64(-3)));
             break;
 
         case DOUBLE_TYPE:
@@ -2507,7 +2610,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
             //| mov32 w9, -3
             //| call_rw extern lua_settop, L_ARG, w9
             //| ldr d0, [sp, #32]
-            dasm_put(Dst, 500, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64(-3)), (SIXTEEN_TO_THIRTYONE_OF_64(-3)));
+            dasm_put(Dst, 518, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64(-3)), (SIXTEEN_TO_THIRTYONE_OF_64(-3)));
             break;
 
         case COMPLEX_FLOAT_TYPE:
@@ -2527,7 +2630,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
 			//| ldr s0, [sp,#32]
 			//| ldr s1, [sp,#36]
 			//|
-			dasm_put(Dst, 519, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64(-3)), (SIXTEEN_TO_THIRTYONE_OF_64(-3)));
+			dasm_put(Dst, 537, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64(-3)), (SIXTEEN_TO_THIRTYONE_OF_64(-3)));
             break;
 
         case COMPLEX_DOUBLE_TYPE:
@@ -2547,7 +2650,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
 			//| ldr d0, [sp,#32]
 			//| ldr d1, [sp,#40]
 			//|
-			dasm_put(Dst, 540, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64(-3)), (SIXTEEN_TO_THIRTYONE_OF_64(-3)));
+			dasm_put(Dst, 558, (ZERO_TO_FIFTEEN_OF_64(-1)), (SIXTEEN_TO_THIRTYONE_OF_64(-1)), (ZERO_TO_FIFTEEN_OF_64(-3)), (SIXTEEN_TO_THIRTYONE_OF_64(-3)));
             break;
 
         default:
@@ -2557,7 +2660,7 @@ cfunction compile_callback(lua_State* L, int fidx, int ct_usr, const struct ctyp
 
 	//| epilog
 	//| ret
-	dasm_put(Dst, 561);
+	dasm_put(Dst, 579);
 
     lua_pop(L, 1); /* upval table - already in registry */
     assert(lua_gettop(L) == top);
@@ -2579,7 +2682,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
     const struct ctype* mbr_ct;
     struct jit* Dst = get_jit(L);
     struct reg_alloc reg;
-    void* p;
+    void* p = NULL;
     int top = lua_gettop(L);
     int* perr = &Dst->last_errno;
 
@@ -2592,7 +2695,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
 
     orig_top = lua_gettop(L);
     p = push_cdata(L, ct_usr, ct);
-    *(cfunction*) p = func;
+    memcpy(p,func, ctype_size(L, ct));
 
     nargs = lua_rawlen(L, ct_usr);
 	assert(nargs <= ((unsigned int)(0xFFE))); // <= 4094 s.t. 4095 can fit into imm12
@@ -2601,7 +2704,6 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
         luaL_error(L, "vararg is only allowed with the c calling convention");
     }
 
-    //printf("%s:%d\n", __FILE__, __LINE__);
     //| sub sp, sp, #64 // = -64
     //| stp x29, x30, [sp, #48] // 16-byte Folded Spill
     //| stp EXTRA_REG_2, EXTRA_REG_3, [sp, #32] // 16-byte Folded Spill
@@ -2621,34 +2723,34 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
     //|
     //| // Get L from our arguments and allocate some stack for lua_gettop
     //| mov L_ARG, x0 // First argument to the lua function int f(lua_State * L);
-    dasm_put(Dst, 572);
+    dasm_put(Dst, 590);
 
     //|
     //| call_r extern lua_gettop, L_ARG
     //| mov TOP, x0
     //| cmp x0, #(nargs)
-    dasm_put(Dst, 580, (nargs));
+    dasm_put(Dst, 598, (nargs));
     if (!ct->has_var_arg) {
         //| bge >2
         //| too_few_arguments
         //| 2:
         //| ble >1
         //| too_many_arguments
-        dasm_put(Dst, 587, (ZERO_TO_FIFTEEN_OF_64(MESSAGE_1)), (SIXTEEN_TO_THIRTYONE_OF_64(MESSAGE_1)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(MESSAGE_1)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(MESSAGE_1)), (ZERO_TO_FIFTEEN_OF_64(MESSAGE_2)), (SIXTEEN_TO_THIRTYONE_OF_64(MESSAGE_2)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(MESSAGE_2)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(MESSAGE_2)));
+        dasm_put(Dst, 605, (ZERO_TO_FIFTEEN_OF_64(MESSAGE_1)), (SIXTEEN_TO_THIRTYONE_OF_64(MESSAGE_1)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(MESSAGE_1)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(MESSAGE_1)), (ZERO_TO_FIFTEEN_OF_64(MESSAGE_2)), (SIXTEEN_TO_THIRTYONE_OF_64(MESSAGE_2)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(MESSAGE_2)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(MESSAGE_2)));
     } else {
         //| bge >1
         //| too_few_arguments
-        dasm_put(Dst, 617, (ZERO_TO_FIFTEEN_OF_64(MESSAGE_1)), (SIXTEEN_TO_THIRTYONE_OF_64(MESSAGE_1)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(MESSAGE_1)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(MESSAGE_1)));
+        dasm_put(Dst, 635, (ZERO_TO_FIFTEEN_OF_64(MESSAGE_1)), (SIXTEEN_TO_THIRTYONE_OF_64(MESSAGE_1)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(MESSAGE_1)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(MESSAGE_1)));
     }
 
     //| 1:
-    dasm_put(Dst, 632);
+    dasm_put(Dst, 650);
 
     /* no need to zero extend eax returned by lua_gettop to rax as x86-64
      * preguarentees that the upper 32 bits will be zero */
     //| sub sp, sp, TOP, lsl #4 // reserve 16 bytes per argument - this maintains the alignment mod 16
     //| sub sp, sp, #(32 + REGISTER_STACK_SPACE(ct)) // reserve an extra 32 to call local functions
-    dasm_put(Dst, 634, (32 + REGISTER_STACK_SPACE(ct)));
+    dasm_put(Dst, 652, (32 + REGISTER_STACK_SPACE(ct)));
 
     for (i = 1; i <= nargs; i++) {
         lua_rawgeti(L, ct_usr, (int) i);
@@ -2661,7 +2763,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             //| mov32 w9, lua_upvalueindex(num_upvals)
             //| sxtw x9, w9
             //| call_riwp extern check_typed_pointer, L_ARG, i, w9, mbr_ct
-            dasm_put(Dst, 638, (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)), i);
+            dasm_put(Dst, 656, (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)), i);
             add_pointer(Dst, ct, &reg);
         } else {
             switch (mbr_ct->type) {
@@ -2671,7 +2773,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
                 //| mov32 w9, lua_upvalueindex(num_upvals)
                 //| sxtw x9, w9
                 //| call_riwp extern check_typed_cfunction, L_ARG, i, w9, mbr_ct
-                dasm_put(Dst, 658, (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)), i);
+                dasm_put(Dst, 676, (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)), i);
                 add_pointer(Dst, ct, &reg);
                 break;
 
@@ -2681,36 +2783,41 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
                 //| mov32 w9, lua_upvalueindex(num_upvals)
                 //| sxtw x9, w9
                 //| call_riwp, extern check_enum, L_ARG, i, w9, mbr_ct
-                dasm_put(Dst, 678, (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)), i);
-                add_int(Dst, ct, &reg, 0);
+                dasm_put(Dst, 696, (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)), i);
+                add_int(Dst, ct, &reg, int32);
                 break;
 
             case INT8_TYPE:
-                //| call_ri extern check_int32, L_ARG, i
-                dasm_put(Dst, 698, (i));
+				//| call_ri extern check_int32, L_ARG, i
                 if (mbr_ct->is_unsigned) {
+					//| call_ri extern check_uint8, L_ARG, i
+					//| call_ri extern check_uint32, L_ARG, i
                     //| ubfm x0, x0, #0, #7
-                    dasm_put(Dst, 704);
+                    dasm_put(Dst, 716, (i));
                 } else {
+					//| call_ri extern check_int8, L_ARG, i
+					//| call_ri extern check_int32, L_ARG, i
                     //| sbfm x0, x0, #0, #7
-                    dasm_put(Dst, 706);
-                    //| sxtb x0, x0
+                    dasm_put(Dst, 723, (i));
                 }
-                add_int(Dst, ct, &reg, 0);
+                add_int(Dst, ct, &reg, int8);
                 lua_pop(L, 1);
                 break;
 
             case INT16_TYPE:
-                //| call_ri extern check_int32, L_ARG, i
-                dasm_put(Dst, 708, (i));
+				//| call_ri extern check_int32, L_ARG, i
                 if (mbr_ct->is_unsigned) {
+					//| call_ri extern check_uint16, L_ARG, i
+					//| call_ri extern check_uint32, L_ARG, i
                     //| ubfm x0, x0, #0, #15
-                    dasm_put(Dst, 714);
+                    dasm_put(Dst, 730, (i));
                 } else {
+					//| call_ri extern check_int16, L_ARG, i
+					//| call_ri extern check_int32, L_ARG, i
                     //| sbfm x0, x0, #0, #15
-                    dasm_put(Dst, 716);
+                    dasm_put(Dst, 737, (i));
                 }
-                add_int(Dst, ct, &reg, 0);
+                add_int(Dst, ct, &reg, int16);
                 lua_pop(L, 1);
                 break;
 
@@ -2721,26 +2828,26 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
                 //| mov b0, #1
                 //| 1:
                 //| ubfm x0, x0, #0, #7
-                dasm_put(Dst, 718, (i));
-                add_int(Dst, ct, &reg, 0);
+                dasm_put(Dst, 744, (i));
+                add_int(Dst, ct, &reg, int8);
                 lua_pop(L, 1);
                 break;
 
             case INT32_TYPE:
                 if (mbr_ct->is_unsigned) {
                     //| call_ri extern check_uint32, L_ARG, i
-                    dasm_put(Dst, 730, (i));
+                    dasm_put(Dst, 756, (i));
                 } else {
                     //| call_ri extern check_int32, L_ARG, i
-                    dasm_put(Dst, 736, (i));
+                    dasm_put(Dst, 762, (i));
                 }
-                add_int(Dst, ct, &reg, 0);
+                add_int(Dst, ct, &reg, int32);
                 lua_pop(L, 1);
                 break;
 
             case INTPTR_TYPE:
                 //| call_ri extern check_uintptr, L_ARG, i
-                dasm_put(Dst, 742, (i));
+                dasm_put(Dst, 768, (i));
                 add_pointer(Dst, ct, &reg);
                 lua_pop(L, 1);
                 break;
@@ -2748,18 +2855,18 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             case INT64_TYPE:
                 if (mbr_ct->is_unsigned) {
                     //| call_ri extern check_uint64, L_ARG, i
-                    dasm_put(Dst, 748, (i));
+                    dasm_put(Dst, 774, (i));
                 } else {
                     //| call_ri extern check_int64, L_ARG, i
-                    dasm_put(Dst, 754, (i));
+                    dasm_put(Dst, 780, (i));
                 }
-                add_int(Dst, ct, &reg, 1);
+                add_int(Dst, ct, &reg, int64);
                 lua_pop(L, 1);
                 break;
 
             case DOUBLE_TYPE:
                 //| call_ri extern check_double, L_ARG, i
-                dasm_put(Dst, 760, (i));
+                dasm_put(Dst, 786, (i));
                 add_float(Dst, ct, &reg, 1);
                 lua_pop(L, 1);
                 break;
@@ -2770,14 +2877,14 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
                  * the returned arg is stored (this is popped by the called
                  * function) */
                 //| call_ri extern check_complex_double, L_ARG, i
-                dasm_put(Dst, 766, (i));
+                dasm_put(Dst, 792, (i));
                 add_complex_float(Dst, ct, &reg, 1);
                 lua_pop(L, 1);
                 break;
 
             case FLOAT_TYPE:
                 //| call_ri extern check_double, L_ARG, i
-                dasm_put(Dst, 772, (i));
+                dasm_put(Dst, 798, (i));
                 add_float(Dst, ct, &reg, 0);
                 lua_pop(L, 1);
                 break;
@@ -2785,7 +2892,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             case COMPLEX_FLOAT_TYPE:
                 /* complex floats are returned as s0 and s1 */
                 //| call_ri extern check_complex_float, L_ARG, i
-                dasm_put(Dst, 778, (i));
+                dasm_put(Dst, 804, (i));
                 add_complex_float(Dst, ct, &reg, 0);
                 lua_pop(L, 1);
                 break;
@@ -2801,20 +2908,20 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             //| mov x9, sp
             //| add x9, x9, #(32 + 8*(MAX_INT_REGISTERS(ct) + reg.floats))
             //| call_ririr extern unpack_varargs_float, L_ARG, (nargs+1), TOP, (MAX_FLOAT_REGISTERS(ct) - reg.floats), x9
-            dasm_put(Dst, 784, (32 + 8*(MAX_INT_REGISTERS(ct) + reg.floats)), (MAX_FLOAT_REGISTERS(ct) - reg.floats), (nargs+1));
+            dasm_put(Dst, 810, (32 + 8*(MAX_INT_REGISTERS(ct) + reg.floats)), (MAX_FLOAT_REGISTERS(ct) - reg.floats), (nargs+1));
         }
 
         if (reg.ints < MAX_INT_REGISTERS(ct)) {
             //| mov x9, sp
             //| add x9, x9, #(32 + 8*(reg.ints))
             //| call_ririr extern unpack_varargs_int, L_ARG, (nargs+1), TOP, (MAX_INT_REGISTERS(ct) - reg.ints), x9
-            dasm_put(Dst, 797, (32 + 8*(reg.ints)), (MAX_INT_REGISTERS(ct) - reg.ints), (nargs+1));
+            dasm_put(Dst, 823, (32 + 8*(reg.ints)), (MAX_INT_REGISTERS(ct) - reg.ints), (nargs+1));
         }
 
         //| mov x9, sp
         //| add x9, x9, #(reg.off)
         //| call_ririir extern unpack_varargs_stack_skip, L_ARG, (nargs+1), TOP, (MAX_INT_REGISTERS(ct) - reg.ints), (MAX_FLOAT_REGISTERS(ct) - reg.floats), x9
-        dasm_put(Dst, 810, (reg.off), (MAX_FLOAT_REGISTERS(ct) - reg.floats), (MAX_INT_REGISTERS(ct) - reg.ints), (nargs+1));
+        dasm_put(Dst, 836, (reg.off), (MAX_FLOAT_REGISTERS(ct) - reg.floats), (MAX_INT_REGISTERS(ct) - reg.ints), (nargs+1));
 
         reg.floats = MAX_FLOAT_REGISTERS(ct);
         reg.ints = MAX_INT_REGISTERS(ct);
@@ -2824,37 +2931,37 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
 	//| mov x10, xzr
     //| ldr w10, [x9]
     //| call_w extern SetLastError, w10
-    dasm_put(Dst, 825, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+    dasm_put(Dst, 851, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
 
     /* remove the stack space to call local functions */
     //| add sp, sp, #(32)
-    dasm_put(Dst, 839);
+    dasm_put(Dst, 865);
 
     switch (reg.floats) {
     case 8:
         //| ldr d7, [sp, #(8*(MAX_INT_REGISTERS(ct)+7))]
-        dasm_put(Dst, 841, (8*(MAX_INT_REGISTERS(ct)+7)));
+        dasm_put(Dst, 867, (8*(MAX_INT_REGISTERS(ct)+7)));
     case 7:
         //| ldr d6, [sp, #(8*(MAX_INT_REGISTERS(ct)+6))]
-        dasm_put(Dst, 844, (8*(MAX_INT_REGISTERS(ct)+6)));
+        dasm_put(Dst, 870, (8*(MAX_INT_REGISTERS(ct)+6)));
     case 6:
         //| ldr d5, [sp, #(8*(MAX_INT_REGISTERS(ct)+5))]
-        dasm_put(Dst, 847, (8*(MAX_INT_REGISTERS(ct)+5)));
+        dasm_put(Dst, 873, (8*(MAX_INT_REGISTERS(ct)+5)));
     case 5:
         //| ldr d4, [sp, #(8*(MAX_INT_REGISTERS(ct)+4))]
-        dasm_put(Dst, 850, (8*(MAX_INT_REGISTERS(ct)+4)));
+        dasm_put(Dst, 876, (8*(MAX_INT_REGISTERS(ct)+4)));
     case 4:
         //| ldr d3, [sp, #(8*(MAX_INT_REGISTERS(ct)+3))]
-        dasm_put(Dst, 853, (8*(MAX_INT_REGISTERS(ct)+3)));
+        dasm_put(Dst, 879, (8*(MAX_INT_REGISTERS(ct)+3)));
     case 3:
         //| ldr d2, [sp, #(8*(MAX_INT_REGISTERS(ct)+2))]
-        dasm_put(Dst, 856, (8*(MAX_INT_REGISTERS(ct)+2)));
+        dasm_put(Dst, 882, (8*(MAX_INT_REGISTERS(ct)+2)));
     case 2:
         //| ldr d1, [sp, #(8*(MAX_INT_REGISTERS(ct)+1))]
-        dasm_put(Dst, 859, (8*(MAX_INT_REGISTERS(ct)+1)));
+        dasm_put(Dst, 885, (8*(MAX_INT_REGISTERS(ct)+1)));
     case 1:
         //| ldr d0, [sp, #(8*(MAX_INT_REGISTERS(ct)))]
-        dasm_put(Dst, 862, (8*(MAX_INT_REGISTERS(ct))));
+        dasm_put(Dst, 888, (8*(MAX_INT_REGISTERS(ct))));
     case 0:
         break;
     }
@@ -2862,40 +2969,41 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
     switch (reg.ints) {
     case 8:
         //| ldr x7, [sp, #(8*7)]
-        dasm_put(Dst, 865);
+        dasm_put(Dst, 891);
     case 7:
         //| ldr x6, [sp, #(8*6)]
-        dasm_put(Dst, 867);
+        dasm_put(Dst, 893);
     case 6:
         //| ldr x5, [sp, #(8*5)]
-        dasm_put(Dst, 869);
+        dasm_put(Dst, 895);
     case 5:
         //| ldr x4, [sp, #(8*4)]
-        dasm_put(Dst, 871);
+        dasm_put(Dst, 897);
     case 4:
         //| ldr x3, [sp, #(8*3)]
-        dasm_put(Dst, 873);
+        dasm_put(Dst, 899);
     case 3:
         //| ldr x2, [sp, #(8*2)]
-        dasm_put(Dst, 875);
+        dasm_put(Dst, 901);
     case 2:
         //| ldr x1, [sp, #(8*1)]
-        dasm_put(Dst, 877);
+        dasm_put(Dst, 903);
     case 1:
         //| ldr x0, [sp]
-        dasm_put(Dst, 879);
+        dasm_put(Dst, 905);
     case 0:
         break;
     }
 
     //| add sp, sp, #(REGISTER_STACK_SPACE(ct))
-    dasm_put(Dst, 881, (REGISTER_STACK_SPACE(ct)));
+    dasm_put(Dst, 907, (REGISTER_STACK_SPACE(ct)));
 
+	//printf("%s:%d compiling call \n", __FILE__, __LINE__);
     //| bl extern FUNCTION
 	//|
     //| add sp, sp, TOP, lsl #4 // Free up the stack space reserved for FUNCTION call
     //| sub sp, sp, #48 // 32 to be able to call local functions, 16 so we can store some local variables
-    dasm_put(Dst, 884);
+    dasm_put(Dst, 910);
 
     lua_rawgeti(L, ct_usr, 0); /* i = 0 is the return type */
     mbr_ct = (const struct ctype*) lua_touserdata(L, -1);
@@ -2911,7 +3019,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
         //| ldr x9, [sp, #32]
         //| str x9, [x0] // *(void**) cdata = val
         //| lua_return_arg
-        dasm_put(Dst, 889, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
+        dasm_put(Dst, 915, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
     } else {
         switch (mbr_ct->type) {
         case FUNCTION_PTR_TYPE:
@@ -2925,17 +3033,17 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             //| ldr x9, [sp, #32]
             //| str x9, [x0] // *(void**) cdata = val
             //| lua_return_arg
-            dasm_put(Dst, 931, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
+            dasm_put(Dst, 957, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
             break;
 
         case INT64_TYPE:
             lua_pop(L, 1);
             if (mbr_ct->is_unsigned) {
                 //| lua_return_ulong
-                dasm_put(Dst, 973, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+                dasm_put(Dst, 999, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             } else {
                 //| lua_return_long
-                dasm_put(Dst, 1001, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+                dasm_put(Dst, 1027, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             }
             break;
 
@@ -2958,7 +3066,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             //| str s1, [x0, #4]
             //|
             //| lua_return_arg
-            dasm_put(Dst, 1029, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
+            dasm_put(Dst, 1055, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
             break;
 
         case COMPLEX_DOUBLE_TYPE:
@@ -2980,19 +3088,19 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             //| str d1, [x0, #8]
             //|
             //| lua_return_arg
-            dasm_put(Dst, 1074, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
+            dasm_put(Dst, 1100, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)), (ZERO_TO_FIFTEEN_OF_64(lua_upvalueindex(num_upvals))), (SIXTEEN_TO_THIRTYONE_OF_64(lua_upvalueindex(num_upvals))), (ZERO_TO_FIFTEEN_OF_64(mbr_ct)), (SIXTEEN_TO_THIRTYONE_OF_64(mbr_ct)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(mbr_ct)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(mbr_ct)));
             break;
 
         case VOID_TYPE:
             lua_pop(L, 1);
             //| lua_return_void
-            dasm_put(Dst, 1119, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+            dasm_put(Dst, 1145, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             break;
 
         case BOOL_TYPE:
             lua_pop(L, 1);
             //| lua_return_bool
-            dasm_put(Dst, 1141, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+            dasm_put(Dst, 1167, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             break;
 
         case INT8_TYPE:
@@ -3000,14 +3108,14 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             if (mbr_ct->is_unsigned) {
                 //| // movzx eax, al
                 //| ubfm x0, x0, #0, #7
-                dasm_put(Dst, 1170);
+                dasm_put(Dst, 1196);
             } else {
                 //| //movsx eax, al
                 //| sbfm x0, x0, #0, #7
-                dasm_put(Dst, 1172);
+                dasm_put(Dst, 1198);
             }
             //| lua_return_int
-            dasm_put(Dst, 1174, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+            dasm_put(Dst, 1200, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             break;
 
         case INT16_TYPE:
@@ -3015,14 +3123,14 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             if (mbr_ct->is_unsigned) {
                 //| //movzx eax, ax
                 //| ubfm x0, x0, #0, #15
-                dasm_put(Dst, 1202);
+                dasm_put(Dst, 1228);
             } else {
                 //| //movsx eax, ax
                 //| sbfm x0, x0, #0, #15
-                dasm_put(Dst, 1204);
+                dasm_put(Dst, 1230);
             }
             //| lua_return_int
-            dasm_put(Dst, 1206, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+            dasm_put(Dst, 1232, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             break;
 
         case INT32_TYPE:
@@ -3030,10 +3138,10 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             lua_pop(L, 1);
             if (mbr_ct->is_unsigned) {
                 //| lua_return_uint
-                dasm_put(Dst, 1234, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+                dasm_put(Dst, 1260, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             } else {
                 //| lua_return_int
-                dasm_put(Dst, 1262, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+                dasm_put(Dst, 1288, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             }
             break;
 
@@ -3041,13 +3149,13 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
             lua_pop(L, 1);
             //| fcvt d0, s0
             //| lua_return_double
-            dasm_put(Dst, 1290, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+            dasm_put(Dst, 1316, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             break;
 
         case DOUBLE_TYPE:
             lua_pop(L, 1);
             //| lua_return_double
-            dasm_put(Dst, 1318, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
+            dasm_put(Dst, 1344, (ZERO_TO_FIFTEEN_OF_64(perr)), (SIXTEEN_TO_THIRTYONE_OF_64(perr)), (THIRTYTWO_TO_FORTYSEVEN_OF_64(perr)), (FORTYEIGHT_TO_SIXTYTHREE_OF_64(perr)));
             break;
 
         default:

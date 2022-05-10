@@ -3433,7 +3433,7 @@ static int setup_upvals(lua_State* L)
 
     /* ffi.C */
     {
-#ifdef _WIN32
+#ifdef _WIN32 //{
         size_t sz = sizeof(HMODULE) * 6;
         HMODULE* libs = lua_newuserdata(L, sz);
         memset(libs, 0, sz);
@@ -3441,40 +3441,40 @@ static int setup_upvals(lua_State* L)
         /* exe */
         GetModuleHandle(NULL);
         /* lua dll */
-#ifdef LUA_DLL_NAME
+#ifdef LUA_DLL_NAME //{
 #define STR2(tok) #tok
 #define STR(tok) STR2(tok)
         libs[1] = LoadLibraryA(STR(LUA_DLL_NAME));
 #undef STR
 #undef STR2
-#endif
+#endif //}
 
         /* crt */
-#ifdef UNDER_CE
+#ifdef UNDER_CE //{
         libs[2] = LoadLibraryA("coredll.dll");
-#else
+#else //}{
         GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (char*) &_fmode, &libs[2]);
         libs[3] = LoadLibraryA("kernel32.dll");
         libs[4] = LoadLibraryA("user32.dll");
         libs[5] = LoadLibraryA("gdi32.dll");
-#endif
+#endif //}
 
         jit->lua_dll = libs[1];
         jit->kernel32_dll = libs[3];
 
-#else /* !_WIN32 */
+#else /* !_WIN32 */ //}{
         size_t sz = sizeof(void*) * 5;
         void** libs = lua_newuserdata(L, sz);
         memset(libs, 0, sz);
 
         libs[0] = LoadLibraryA(NULL); /* exe */
         libs[1] = LoadLibraryA("libc.so");
-#ifdef __GNUC__
+#ifdef __GNUC__ //{
         libs[2] = LoadLibraryA("libgcc.so");
-#endif
+#endif //}
         libs[3] = LoadLibraryA("libm.so");
         libs[4] = LoadLibraryA("libdl.so");
-#endif
+#endif //}
 
         lua_newtable(L);
         lua_setuservalue(L, -2);
