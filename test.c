@@ -706,6 +706,12 @@ void test_call_pppppffffff(void* p1, void* p2, void* p3, void* p4, void* p5, flo
     sprintf(buf, "%p %p %p %p %p %0.1f %0.1f %0.1f %0.1f %0.1f %0.1f", p1, p2, p3, p4, p5, f1, f2, f3, f4, f5, f6);
 }
 
+EXPORT void test_call_pppppffffffffff(void* p1, void* p2, void* p3, void* p4, void* p5, float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9, float f10);
+void test_call_pppppffffffffff(void* p1, void* p2, void* p3, void* p4, void* p5, float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9, float f10)
+{
+    sprintf(buf, "%p %p %p %p %p %0.1f %0.1f %0.1f %0.1f %0.1f %0.1f %0.1f %0.1f %0.1f %0.1f", p1, p2, p3, p4, p5, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10);
+}
+
 EXPORT void test_call_pppppiifiii(void* p1, void* p2, void* p3, void* p4, void* p5, int i1, int i2, float f3, int i4, int i5, int i6);
 void test_call_pppppiifiii(void* p1, void* p2, void* p3, void* p4, void* p5, int i1, int i2, float f3, int i4, int i5, int i6)
 {

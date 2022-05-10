@@ -2205,7 +2205,7 @@ static void add_float(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, i
         //| fcvt s0, d0
         //| str s0, [sp, #(reg->off)]
         dasm_put(Dst, 72, (reg->off));
-        reg->off += 8;
+        reg->off += 4;
     }
 }
 
