@@ -126,10 +126,13 @@ static int type_error(lua_State* L, int idx, const char* to_type, int to_usr, co
 
     if (ft.type != INVALID_TYPE) {
         push_type_name(L, -1, &ft);
+		STACK_TRACE();
+		printf("%s:%d\n", __FILE__, __LINE__);
         lua_pushfstring(L, "unable to convert argument %d from cdata<%s> to cdata<", idx, lua_tostring(L, -1));
         lua_remove(L, -2);
         luaL_addvalue(&B);
     } else {
+		printf("%s:%d\n", __FILE__, __LINE__);
         lua_pushfstring(L, "unable to convert argument %d from lua<%s> to cdata<", idx, luaL_typename(L, idx));
         luaL_addvalue(&B);
     }
@@ -438,6 +441,14 @@ static size_t unpack_vararg(lua_State* L, int i, char* to)
         } else if (ct.pointers || ct.type == INTPTR_TYPE) {
             *(void**) to = p;
             return sizeof(void*);
+
+        } else if (ct.type == INT8_TYPE) {
+            *(int8_t*) to = *(int8_t*) p;
+            return sizeof(int8_t);
+
+        } else if (ct.type == INT16_TYPE) {
+            *(int16_t*) to = *(int16_t*) p;
+            return sizeof(int16_t);
 
         } else if (ct.type == INT32_TYPE) {
             *(int32_t*) to = *(int32_t*) p;
