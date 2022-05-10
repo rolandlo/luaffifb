@@ -2922,6 +2922,9 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
         reg.floats = MAX_FLOAT_REGISTERS(ct);
         reg.ints = MAX_INT_REGISTERS(ct);
 #else //}{
+        if (reg.off % 8 != 0) {
+            reg.off += 8 - (reg.off % 8);
+        }
         //| mov x9, sp
         //| add x9, x9, #(reg.off)
         //| call_ririir extern unpack_varargs_stack_skip, L_ARG, (nargs+1), TOP, 0, 0, x9
