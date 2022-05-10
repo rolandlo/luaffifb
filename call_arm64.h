@@ -2922,6 +2922,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
         reg.floats = MAX_FLOAT_REGISTERS(ct);
         reg.ints = MAX_INT_REGISTERS(ct);
 #else //}{
+		/* On OSX M1 all variadic acruments on stack are 8 byte aligned */
         if (reg.off % 8 != 0) {
             reg.off += 8 - (reg.off % 8);
         }
