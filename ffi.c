@@ -10,6 +10,11 @@
 #include <math.h>
 #include <inttypes.h>
 
+#ifdef ARCH_ARM64
+#include <arm_acle.h>
+#endif
+
+
 #include <execinfo.h>
 #define STACK_TRACE() {\
     void* callstack[128+1]; \
@@ -1643,6 +1648,22 @@ static int cdata_call(lua_State* L)
     if (!lua_isfunction(L, -1)) {
         lua_pop(L, 1);
         compile_function(L, *p, -1, &ct);
+#ifdef ARCH_ARM64
+		/* Ref: https://developer.arm.com/documentation/ihi0053/latest
+		 * Generates an ISB (instruction synchronization barrier) instruction or
+		 * equivalent CP15 instruction. This instruction flushes the processor
+		 * pipeline fetch buffers, so that following instructions are fetched
+		 * from cache or memory. An ISB is needed after some system maintenance
+		 * operations.  An ISB is also needed before transferring control to code
+		 * that has been loaded or modified in memory, for example by an overlay
+		 * mechanism or just-in-time code generator. (Note that if instruction
+		 * and data caches are separate, privileged cache maintenance operations
+		 * would be needed in order to unify the caches.) The only supported
+		 * argument for the __isb() intrinsic is 15, corresponding to the SY
+		 * (full system) scope of the ISB instruction.
+		*/
+		__isb(15);
+#endif
 
         assert(lua_gettop(L) == top + 2); /* uv, closure */
 
@@ -3104,6 +3125,22 @@ static int cmodule_index(lua_State* L)
 
     if (ct.type == FUNCTION_TYPE) {
         compile_function(L, (cfunction) sym, -1, &ct);
+#ifdef ARCH_ARM64
+		/* Ref: https://developer.arm.com/documentation/ihi0053/latest
+		 * Generates an ISB (instruction synchronization barrier) instruction or
+		 * equivalent CP15 instruction. This instruction flushes the processor
+		 * pipeline fetch buffers, so that following instructions are fetched
+		 * from cache or memory. An ISB is needed after some system maintenance
+		 * operations.  An ISB is also needed before transferring control to code
+		 * that has been loaded or modified in memory, for example by an overlay
+		 * mechanism or just-in-time code generator. (Note that if instruction
+		 * and data caches are separate, privileged cache maintenance operations
+		 * would be needed in order to unify the caches.) The only supported
+		 * argument for the __isb() intrinsic is 15, corresponding to the SY
+		 * (full system) scope of the ISB instruction.
+		*/
+		__isb(15);
+#endif
         assert(lua_gettop(L) == 4); /* module, name, ct_usr, function */
 
         /* set module usr value[luaname] = function to cache for next time */

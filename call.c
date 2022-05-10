@@ -8,7 +8,6 @@
  */
 #include "ffi.h"
 
-
 #include <unistd.h>
 
 #include <execinfo.h>
@@ -384,7 +383,7 @@ static void commit_code(struct jit* jit, void* code, size_t sz)
 
     {
 #if 0
-        FILE* out = fopen("\\Hard Disk\\out.bin", "wb");
+        FILE* out = fopen("out.bin", "wb");
         fwrite(page, page->off, 1, out);
         fclose(out);
 #endif

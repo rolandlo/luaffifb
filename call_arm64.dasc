@@ -595,16 +595,6 @@ static void get_int(Dst_DECL, const struct ctype* ct, struct reg_alloc* reg, int
         | ldr x9, [rbp , #(x)]
         reg->ints++;
     }
-	/*
-	else if (int_type == int64) {
-        | ldr x9, [rbp , #(reg->off)] // x9 is a scratch register
-        reg->off += 8;
-	}
-    else {
-        | ldr w9, [rbp , #(reg->off)]
-        reg->off += 8;
-    }
-	*/
 	else {
 		switch (int_type) {
 			case int8:
@@ -1385,6 +1375,7 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
     }
 
     if (ct->has_var_arg) {
+#ifndef OS_OSX //{
         if (reg.floats < MAX_FLOAT_REGISTERS(ct)) {
             | mov x9, sp
             | add x9, x9, #(32 + 8*(MAX_INT_REGISTERS(ct) + reg.floats))
@@ -1403,6 +1394,14 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
 
         reg.floats = MAX_FLOAT_REGISTERS(ct);
         reg.ints = MAX_INT_REGISTERS(ct);
+#else //}{
+        | mov x9, sp
+        | add x9, x9, #(reg.off)
+        | call_ririir extern unpack_varargs_stack_skip, L_ARG, (nargs+1), TOP, 0, 0, x9
+
+        reg.floats = MAX_FLOAT_REGISTERS(ct);
+        reg.ints = MAX_INT_REGISTERS(ct);
+#endif //}
     }
 
     | mov64 x9, perr

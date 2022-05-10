@@ -2213,10 +2213,6 @@ static int parse_root(lua_State* L, struct parser* P)
 
             for (;;) {
                 parse_argument(L, P, -1, &type, &name, &asmname);
-				char nn [100];
-				memset(nn,0,100);
-				strncpy(nn, name.str, name.size);
-				//printf("%s:%d name=[%s]\n", __FILE__, __LINE__, nn);
 
                 if (name.size) {
                     /* global/function declaration */
