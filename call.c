@@ -348,14 +348,14 @@ static void* reserve_code(struct jit* jit, lua_State* L, size_t sz)
 #endif //}
 #ifdef OS_LINUX //{
 #ifdef __clang__ //{
-#ifdef __cplusplus
+#ifdef __cplusplus //{
 extern "C" void __clear_cache(void *, void*);
-#else
-extern void __clear_cache(void *, void*);
-#endif
 #else //}{
-#include <sys/cachectl.h>
-	/* Explore void __builtin___clear_cache(void *begin, void *end);*/
+extern void __clear_cache(void *, void*);
+#endif //}
+#else //}{
+///#include <sys/cachectl.h>
+extern void __builtin___clear_cache(void *begin, void *end);
 #endif //}
 #endif //}
 
@@ -377,8 +377,8 @@ static void commit_code(struct jit* jit, void* code, size_t sz)
 	}
 #else //}{
 	{
-		const char *start = page;
-		const char *end = page + page->size;
+		const char *start = (const char *)page;
+		const char *end = (const char *)page + page->size;
 		__builtin___clear_cache((void*)(start), (void*)(end));
 	}
 #endif //}

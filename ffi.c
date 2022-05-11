@@ -1668,7 +1668,11 @@ static int cdata_call(lua_State* L)
 		 * argument for the __isb() intrinsic is 15, corresponding to the SY
 		 * (full system) scope of the ISB instruction.
 		*/
+#ifdef __clang__
 		__isb(15);
+#elif __GNUC__
+        asm("isb 15");
+#endif
 #endif
 
         assert(lua_gettop(L) == top + 2); /* uv, closure */
@@ -3145,7 +3149,11 @@ static int cmodule_index(lua_State* L)
 		 * argument for the __isb() intrinsic is 15, corresponding to the SY
 		 * (full system) scope of the ISB instruction.
 		*/
+#ifdef __clang__
 		__isb(15);
+#elif __GNUC__
+        asm("isb 15");
+#endif
 #endif
         assert(lua_gettop(L) == 4); /* module, name, ct_usr, function */
 
