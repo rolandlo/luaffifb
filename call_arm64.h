@@ -2770,8 +2770,6 @@ void compile_function(lua_State* L, cfunction func, int ct_usr, const struct cty
     //| 1:
     dasm_put(Dst, 644);
 
-    /* no need to zero extend eax returned by lua_gettop to rax as x86-64
-     * preguarentees that the upper 32 bits will be zero */
     //| sub sp, sp, TOP, lsl #4 // reserve 16 bytes per argument - this maintains the alignment mod 16
     //| sub sp, sp, #(32 + REGISTER_STACK_SPACE(ct)) // reserve an extra 32 to call local functions
     dasm_put(Dst, 646, (32 + REGISTER_STACK_SPACE(ct)));
