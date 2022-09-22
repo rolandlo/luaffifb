@@ -2350,7 +2350,7 @@ static int cdata_ipairs(lua_State* L)
 
 static int cdata_add(lua_State* L)
 {
-    struct ctype lt, rt, ct;
+    struct ctype lt, llt, rt, rrt, ct;
     void *lp, *rp;
     int ct_usr;
     int ret;
@@ -2359,6 +2359,8 @@ static int cdata_add(lua_State* L)
 
     lp = to_cdata(L, 1, &lt);
     rp = to_cdata(L, 2, &rt);
+    llt = lt;
+    rrt = rt;
     assert(lua_gettop(L) == 4);
 
     ret = call_user_binop(L, "__add", 1, 3, &lt, 2, 4, &rt);
@@ -2388,11 +2390,11 @@ static int cdata_add(lua_State* L)
         return 1;
 
     } else {
-        int64_t left = check_intptr(L, 1, lp, &lt);
-        int64_t right = check_intptr(L, 2, rp, &rt);
+        int64_t left = check_intptr(L, 1, lp, &llt);
+        int64_t right = check_intptr(L, 2, rp, &rrt);
 		/*
 		 * There is a side effect of check_intptr that it freshly assigns
-		 * values for lt and rt if one of them is an INVALID type (e.g. LUA NUMBER)
+		 * values for lt and rrt if one of them is an INVALID type (e.g. LUA NUMBER)
 		 * thus the rank and therefore ct and ct_usr should get re-evaluated once again.
 		 */
 		ct_usr = rank(&lt) > rank(&rt) ? 3 : 4;
@@ -2402,18 +2404,18 @@ static int cdata_add(lua_State* L)
         /* note due to 2s complement it doesn't matter if we do the addition as int or uint,
          * but the result needs to be uint64_t if either of the sources are */
 
-        if (lt.pointers && rt.pointers) {
+        if (llt.pointers && rrt.pointers) {
             luaL_error(L, "can't add two pointers");
 
-        } else if (lt.pointers) {
-            int64_t res = left + (lt.pointers > 1 ? sizeof(void*) : lt.base_size) * right;
-            lt.is_array = 0;
-            push_number(L, res, 3, &lt);
+        } else if (llt.pointers) {
+            int64_t res = left + (llt.pointers > 1 ? sizeof(void*) : llt.base_size) * right;
+            llt.is_array = 0;
+            push_number(L, res, 3, &llt);
 
-        } else if (rt.pointers) {
-            int64_t res = right + (rt.pointers > 1 ? sizeof(void*) : rt.base_size) * left;
-            rt.is_array = 0;
-            push_number(L, res, 4, &rt);
+        } else if (rrt.pointers) {
+            int64_t res = right + (rrt.pointers > 1 ? sizeof(void*) : rrt.base_size) * left;
+            rrt.is_array = 0;
+            push_number(L, res, 4, &rrt);
 
         } else {
             push_number(L, left + right, ct_usr, &ct);
@@ -2425,7 +2427,7 @@ static int cdata_add(lua_State* L)
 
 static int cdata_sub(lua_State* L)
 {
-    struct ctype lt, rt, ct;
+    struct ctype lt, llt, rt, rrt, ct;
     void *lp, *rp;
     int ct_usr;
     int ret;
@@ -2434,6 +2436,8 @@ static int cdata_sub(lua_State* L)
 
     lp = to_cdata(L, 1, &lt);
     rp = to_cdata(L, 2, &rt);
+	llt = lt;
+	rrt = rt;
 
     ret = call_user_binop(L, "__sub", 1, 3, &lt, 2, 4, &rt);
     if (ret >= 0) {
@@ -2460,24 +2464,24 @@ static int cdata_sub(lua_State* L)
         return 1;
 
     } else {
-        int64_t left = check_intptr(L, 1, lp, &lt);
-        int64_t right = check_intptr(L, 2, rp, &rt);
+        int64_t left = check_intptr(L, 1, lp, &llt);
+        int64_t right = check_intptr(L, 2, rp, &rrt);
 		/*
 		 * There is a side effect of check_intptr that it freshly assigns
-		 * values for lt and rt if one of them is an INVALID type (e.g. LUA NUMBER)
+		 * values for llt and rt if one of them is an INVALID type (e.g. LUA NUMBER)
 		 * thus the rank and therefore ct and ct_usr should get re-evaluated once again.
 		 */
 		ct_usr = rank(&lt) > rank(&rt) ? 3 : 4;
 		ct = rank(&lt) > rank(&rt) ? lt : rt;
 		assert(lua_gettop(L) == 4);
 
-        if (rt.pointers) {
+        if (rrt.pointers) {
             luaL_error(L, "NYI: can't subtract a pointer value");
 
-        } else if (lt.pointers) {
-            int64_t res = left - (lt.pointers > 1 ? sizeof(void*) : lt.base_size) * right;
-            lt.is_array = 0;
-            push_number(L, res, 3, &lt);
+        } else if (llt.pointers) {
+            int64_t res = left - (llt.pointers > 1 ? sizeof(void*) : llt.base_size) * right;
+            llt.is_array = 0;
+            push_number(L, res, 3, &llt);
 
         } else {
             int64_t res = left - right;
@@ -2489,7 +2493,7 @@ static int cdata_sub(lua_State* L)
 }
 
 #define NUMBER_ONLY_BINOP(OPSTR, DO_NORMAL, DO_COMPLEX)                     \
-    struct ctype lt, rt, ct;                                                \
+    struct ctype lt, llt, rt, rrt, ct;                                                \
     void *lp, *rp;                                                          \
     int ct_usr;                                                             \
     int ret;                                                                \
@@ -2498,6 +2502,8 @@ static int cdata_sub(lua_State* L)
                                                                             \
     lp = to_cdata(L, 1, &lt);                                               \
     rp = to_cdata(L, 2, &rt);                                               \
+	llt = lt;																\
+	rrt = rt;																\
                                                                             \
     ret = call_user_binop(L, OPSTR, 1, 3, &lt, 2, 4, &rt);                  \
     if (ret >= 0) {                                                         \
@@ -2520,15 +2526,15 @@ static int cdata_sub(lua_State* L)
                                                                             \
     } else if (ct.is_unsigned) {                                            \
         uint64_t res;                                                       \
-        uint64_t left = check_intptr(L, 1, lp, &lt);                        \
-        uint64_t right = check_intptr(L, 2, rp, &rt);                       \
+        uint64_t left = check_intptr(L, 1, lp, &llt);                       \
+        uint64_t right = check_intptr(L, 2, rp, &rrt);                      \
                                                                             \
         DO_NORMAL(left, right, res);                                        \
         push_number(L, res, ct_usr, &ct);                                   \
 	} else {                                                                \
         int64_t res;                                                        \
-        int64_t left = check_intptr(L, 1, lp, &lt);                         \
-        int64_t right = check_intptr(L, 2, rp, &rt);                        \
+        int64_t left = check_intptr(L, 1, lp, &llt);                        \
+        int64_t right = check_intptr(L, 2, rp, &rrt);                       \
                                                                             \
         DO_NORMAL(left, right, res);                                        \
         push_number(L, res, ct_usr, &ct);                                   \
