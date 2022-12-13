@@ -8,12 +8,11 @@ http://luajit.org/ext_ffi.html). It can parse C function declarations and
 struct definitions that have been directly copied out of C header files and
 into lua source as a string.
 
-This is a fork of https://github.com/jmckaskill/luaffi
-further from https://github.com/facebookarchive/luaffifb
+This is a fork of https://github.com/facebookarchive/luaffifb which is inturn a fork of https://github.com/jmckaskill/luaffi
 
 Source
 ------
-https://github.com/facebook/luaffifb
+https://github.com/Tekenlight/luaffifb
 
 Platforms
 ---------
