@@ -29,7 +29,7 @@ Build
 In a terminal:
 
 ```bash
-git clone https://github.com/facebook/luaffifb
+git clone https://github.com/Tekenlight/luaffifb
 cd luaffifb
 luarocks make
 ```
