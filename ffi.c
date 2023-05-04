@@ -1426,6 +1426,43 @@ static int ctype_call(lua_State* L)
     return do_new(L, 0);
 }
 
+static int ctype_index(lua_State* L)
+{
+    void* to;
+    struct ctype ct;
+    char* data;
+    ptrdiff_t off;
+
+    lua_settop(L, 2);
+    check_ctype(L, 1, &ct);
+    assert(lua_gettop(L) == 3);
+
+    if (!push_user_mt(L, -1, &ct)) {
+        goto err;
+    }
+    lua_pushliteral(L, "__index");
+    lua_rawget(L, -2);
+
+    if (lua_isnil(L, -1)) {
+        goto err;
+    }
+
+    if (lua_istable(L, -1)) {
+        lua_pushvalue(L, 2);
+        lua_gettable(L, -2);
+        return 1;
+    }
+
+    lua_insert(L, 1);
+    lua_settop(L, 3);
+    lua_call(L, 2, LUA_MULTRET);
+    return lua_gettop(L);
+
+err:
+    push_type_name(L, 3, &ct);
+    return luaL_error(L, "type %s has no member %s", lua_tostring(L, -1), lua_tostring(L, 2));
+}
+
 static int ffi_sizeof(lua_State* L)
 {
     struct ctype ct;
@@ -3375,6 +3412,7 @@ static const luaL_Reg callback_mt[] = {
 
 static const luaL_Reg ctype_mt[] = {
     {"__call", &ctype_call},
+    {"__index", &ctype_index},
     {"__new", &ctype_new},
     {"__tostring", &ctype_tostring},
     {NULL, NULL}
